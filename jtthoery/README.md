@@ -11,7 +11,13 @@ You can then see the theory is enabled
 bap list theories
 ```
 
-In principle this might populate the knowledge base
+You can see the slot we've created for comments by looking at
+
+```
+bap list classes | grep comment
+```
+
+These comments can be seen in the knowledge base
 
 ```
 gcc main.c

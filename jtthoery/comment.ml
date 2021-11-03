@@ -9,8 +9,11 @@ module Toy_implementation : T.Core = struct
 
   include T.Empty
 
-  (* Not actually sure to what degree the persistent and public field matter *)
-  let comment_slot = KB.Class.property ~public:true (* ~persistent:KB.Persistent.string *) T.Effect.cls "comment" KB.Domain.string
+  (* Not actually sure to what degree the persistent and public field matter 
+  The ~persistent type-class instance makes your property persistent so that it is stored in the cache (and therefore loaded back), so indeed, if you wouldn't specify it, then you will see the property only on the first run and won't see it afterward when the knowledge base is loaded from the cache. Provided that the cache system is enabled.
+
+  *)
+  let comment_slot = KB.Class.property ~public:true (* ~persistent:KB.Persistent.string *) T.Effect.cls ~package:"toy" "comment" KB.Domain.string
 
   let blk (label : T.label) (data : T.data T.eff) (ctrl : T.ctrl T.eff)
       : unit T.eff =
