@@ -1,0 +1,6 @@
+(defun foo (x y) 
+ (declare (external "foo"))
+ (let ((z (+ x y))) 
+      (+ z y)
+ )
+)

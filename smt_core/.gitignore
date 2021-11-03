@@ -1,0 +1,3 @@
+smt.plugin
+_build/*
+a.out

@@ -1,0 +1,4 @@
+(library
+  (name smt)
+  (libraries bap)
+)
