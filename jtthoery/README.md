@@ -15,7 +15,7 @@ In principle this might populate the knowledge base
 
 ```
 gcc main.c
-bap a.out -knowledge | grep hello
+bap a.out -dknowledge | grep hello
 ```
 
 But it does not. Laziness of the Kb or populating the wrong thing?
