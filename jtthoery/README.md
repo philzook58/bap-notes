@@ -24,4 +24,5 @@ gcc main.c
 bap a.out -dknowledge | grep hello
 ```
 
+Discussion:
 https://gitter.im/BinaryAnalysisPlatform/bap?at=6182dfeffb8ca0572bfed24e

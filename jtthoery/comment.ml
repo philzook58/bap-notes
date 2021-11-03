@@ -13,7 +13,10 @@ module Toy_implementation : T.Core = struct
   The ~persistent type-class instance makes your property persistent so that it is stored in the cache (and therefore loaded back), so indeed, if you wouldn't specify it, then you will see the property only on the first run and won't see it afterward when the knowledge base is loaded from the cache. Provided that the cache system is enabled.
 
   *)
-  let comment_slot = KB.Class.property ~public:true (* ~persistent:KB.Persistent.string *) T.Effect.cls ~package:"toy" "comment" KB.Domain.string
+  let comment_slot = KB.Class.property ~public:true (* ~persistent:KB.Persistent.string *) 
+      T.Effect.cls ~package:"toy" 
+      ~desc:"An example slot put into the knowledge base. Will be populated with the string 'hello world'"
+      "comment" KB.Domain.string
 
   let blk (label : T.label) (data : T.data T.eff) (ctrl : T.ctrl T.eff)
       : unit T.eff =
