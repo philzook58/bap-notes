@@ -2,8 +2,9 @@ open Bap_knowledge.Knowledge
 open Syntax
 open Bap_core_theory
 open Core_kernel
-let () =
-  Theory.declare ~name:"my-constant-tracker" @@
+(* let () =
+  Bap_main.Extension.declare (fun _ctx ->  
+Theory.declare ~name:"my-constant-tracker" @@
   (((Theory.instance ~requires:["bap.std:constant-tracker"] ()) >>=
   Theory.require) >>|
   fun (module Base) : Theory.core -> (module struct
@@ -13,6 +14,7 @@ let () =
       add x y
   end
   ))
+  *)
 module SmtLib = struct
   let atom s = Sexp.Atom s
   let list l = Sexp.List l
@@ -156,5 +158,5 @@ module SmtLib_Core : Theory.Core = struct
   let inv x = list [atom "not"; x] *)
 end
 
-let () =
-  Theory.declare ~name:"smtlib" (KB.return (module SmtLib_Core : Theory.Core))
+let () =   Bap_main.Extension.declare (fun _ctx ->
+  Theory.declare ~name:"smtlib" (KB.return (module SmtLib_Core : Theory.Core)))
