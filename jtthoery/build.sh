@@ -1,0 +1,1 @@
+bapbuild comment.plugin && bapbundle install comment.plugin

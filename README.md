@@ -9,7 +9,7 @@ To me starting out there was a lot to swallow. First I had to learn Ocaml, secon
 
 ## Installing
 
-Long story short:
+`opam` is the standard ocaml package manager. Long story short:
 
 ```
 opam depext --install bap # installs bap and its dependencies
@@ -18,8 +18,6 @@ opam depext --install bap # installs bap and its dependencies
 More details here <https://github.com/BinaryAnalysisPlatform/bap#from-sources>
 
 ## The `bap` command
-
-Type `bap` on the command line
 
 After installing, if you type `bap` you will get a list of information
 
@@ -171,6 +169,26 @@ all of which can be further queries. In particular interest are `bap list theori
 
 `bap --help` is an overwhelming amount of information. Typically you need to try to `grep` for an appropriate keyword. `bap --help | grep -C 10 keyword` will show a context of 10 lines around the found keyword.
 
+
+The `bap` command is the same as `bap disassemble`. The code can be found here <https://github.com/BinaryAnalysisPlatform/bap/tree/97fb7fa6a8a90faeae2b077d8ad59b8b882d7c32/plugins/disassemble>
+
+
+## Bap equivalents of binutils
+
+`objdump` let's you see various outputs about a binary.
+- assembly `-d`
+- symbol `-t` or `--syms`
+- sections & segments  `-x`
+
+`readelf` has some overlap.
+
+
+`bap -dasm` is like `objdump -d`
+`bap specification` is kind of like `readelf --all`
+`bap dependencies` is similar to `ldd` I think.
+
+
+
 ## Primus
 
 Primus is an extensible interpreter/emulator. It can execute code lifted from binaries.
@@ -210,6 +228,14 @@ If you know this plugin is called `api` you can find the options available by
 - https://github.com/BinaryAnalysisPlatform/bap-toolkit Has examples recipes
 
 # Ocaml Stuff
+
+### Finding Stuff
+I use a combination of Merlin, Github Search.
+
+The most interesting folders are `lib` and `plugins`
+
+- https://github.com/ivg/bap/blob/master/lib/bap/bap.mli the bap std library
+- https://github.com/ivg/bap/tree/master/lib/bap_types many bap types are actually defined here
 
 ### Bap is not a library.
 
