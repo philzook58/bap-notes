@@ -18,5 +18,4 @@ gcc main.c
 bap a.out -knowledge | grep hello
 ```
 
-But it does not. Laziness of the Kb or populating the wrong thing?
-
+https://gitter.im/BinaryAnalysisPlatform/bap?at=6182dfeffb8ca0572bfed24e

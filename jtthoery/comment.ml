@@ -10,7 +10,7 @@ module Toy_implementation : T.Core = struct
   include T.Empty
 
   (* Not actually sure to what degree the persistent and public field matter *)
-  let comment_slot = KB.Class.property ~public:true ~persistent:KB.Persistent.string T.Effect.cls "comment" KB.Domain.string
+  let comment_slot = KB.Class.property ~public:true (* ~persistent:KB.Persistent.string *) T.Effect.cls "comment" KB.Domain.string
 
   let blk (label : T.label) (data : T.data T.eff) (ctrl : T.ctrl T.eff)
       : unit T.eff =
@@ -31,5 +31,8 @@ module Toy_implementation : T.Core = struct
 
 end
 
-let () = let theory = KB.return (module Toy_implementation : T.Core) in
+let () =
+  Bap_main.Extension.declare (fun _ctx ->
+  let theory = KB.return (module Toy_implementation : T.Core) in
          T.declare ~package:"toy" ~name:"toy" theory;
+         Ok ())
