@@ -15,7 +15,7 @@ In principle this might populate the knowledge base
 
 ```
 gcc main.c
-bap a.out -knowledge | grep hello
+bap a.out -dknowledge | grep hello
 ```
 
 https://gitter.im/BinaryAnalysisPlatform/bap?at=6182dfeffb8ca0572bfed24e
