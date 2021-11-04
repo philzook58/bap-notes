@@ -1,0 +1,1 @@
+bapbuild initcore.plugin && bapbundle install initcore.plugin
