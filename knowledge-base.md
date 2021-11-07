@@ -9,6 +9,7 @@ The term knowledge base may mean nothing more than database, but to me it implie
 
 
 
+`Toplevel.current ()` is the implicit current knowledge base. This has the program you've lifted in it
 
 # Extensible Records
 
@@ -18,6 +19,12 @@ Ordinary ocaml record look like
 Bap is designed as a framework however, so it is desirable for the record types used by bap to be user extensible. This is a challenge in a statically typed language.
 
 The Bap type `Dict.t` is an extensible record.
+https://github.com/ivg/bap/blob/master/lib/bap_types/bap_value.ml
+
+
+https://discuss.ocaml.org/t/example-use-of-core-kernel-univ-map/4572/3
+
+Univ_map from core_kernel
 
 # `Record.t` = `Dict.t` + Domains
 
@@ -36,7 +43,7 @@ Another common case is to merge a field that is a set by using the union or inte
 
 
 
-
+<https://github.com/ivg/bap/tree/master/lib/knowledge> Code of the knowledge base
 
 
 Discussion of Ivan's talk https://gitter.im/BinaryAnalysisPlatform/bap?at=614c7f4c1179346966327e8c

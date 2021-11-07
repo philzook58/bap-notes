@@ -1,10 +1,12 @@
 # bap-notes
 
-Bap, the binary analysis platform is a framework that disassembles binary code in a variety of formats and for a variety of architectures nad lifts them into a common representation. It then supplies analysis you may perform and tools with which to build your own custom
+Bap, the binary analysis platform is a framework that disassembles binary code in a variety of formats and for a variety of architectures and lifts them into a common representation. It then supplies analysis you may perform and tools with which to build your own custom analysis
 
 It is quite the beast.
 
 To me starting out there was a lot to swallow. First I had to learn Ocaml, second I knew even less about program analysis and binary stuff than I do now.
+
+But maybe these notes may make the road easier for you, dear reader.
 
 
 ## Installing
@@ -129,15 +131,15 @@ I have no idea what many of these do. A majority of the commands are just ways t
 
 Here are the highlights in my opinion.
 - Commands
-  primus-observations      prints a list of Primus observations
-  primus-components        prints a list of Primus components
-  primus-systems           prints a list of Primus systems
-  list                     explores various BAP facilities. Especially helpful for finding slots in the knowledge base
-  cache                    provides options to control cache size and cache garbage collector
-  analyze                  analyses the knowledge base
-  eval-lisp                runs the Primus lisp program
-  show-lisp                shows the static semantics of Primus Lisp definitions
-  primus-lisp-documentation no description provided
+  + primus-observations      prints a list of Primus observations
+  + primus-components        prints a list of Primus components
+  + primus-systems           prints a list of Primus systems
+  + list                     explores various BAP facilities. Especially helpful for finding slots in the knowledge base
+  + cache                    provides options to control cache size and cache garbage collector
+  + analyze                  analyses the knowledge base
+  + eval-lisp                runs the Primus lisp program
+  + show-lisp                shows the static semantics of Primus Lisp definitions
+  + primus-lisp-documentation no description provided
 
 - Plugins
   + print
@@ -162,12 +164,12 @@ Typing `bap list` on my system gives
   collators                project collators (comparators)
 ```
 
-all of which can be further queries. In particular interest are `bap list theories` and `bap list classes` which are important information about the knowledge base.
+all of which can be further queries. In particular interest are `bap list theories` and `bap list classes` which are important information about the knowledge base (in particular listing the available "theories" which are like different interpretations or analysis of the code. `classes` lists the registered classes and their slots in the knowledge base, aka interesting fields you can query bap for).
 
-`bap -dbir -dbil -dknowledge -dasm -dcfg`
+`bap -dbir -dbil -dknowledge -dasm -dcfg` are different options to dump different representations of the code. BIR and BIL are two ba intermediatre representations. `-dknowledge` dumps the knowledge base which is kind of everything bap could figure out about the binary.
 
 
-`bap --help` is an overwhelming amount of information. Typically you need to try to `grep` for an appropriate keyword. `bap --help | grep -C 10 keyword` will show a context of 10 lines around the found keyword.
+`bap --help` is an overwhelming amount of information. Typically you need to try to `grep` for an appropriate keyword. `bap --help | grep -C 10 keyword` will show a context of 10 lines around the found keyword. The keyword I use is often the name of bap plugin from the big list above. 
 
 
 The `bap` command is the same as `bap disassemble`. The code can be found here <https://github.com/BinaryAnalysisPlatform/bap/tree/97fb7fa6a8a90faeae2b077d8ad59b8b882d7c32/plugins/disassemble>
@@ -184,10 +186,10 @@ The `bap` command is the same as `bap disassemble`. The code can be found here <
 
 
 `bap -dasm` is like `objdump -d`
+
 `bap specification` is kind of like `readelf --all`
+
 `bap dependencies` is similar to `ldd` I think.
-
-
 
 ## Primus
 
@@ -196,7 +198,7 @@ You may mix and match Primus Components
 
 The simplest way to run it is
 
-`bap /bin/true --run --run-entry-points=main --primus-print-observations=exception`
+`bap /bin/true --run --run-entry-points=main --primus-print-observations=exception,pc-change`
 
 For more options
 `bap --help | grep -C 10 run`
@@ -209,17 +211,16 @@ In order for bap to recover high level function arguments you can supply a heade
 If you know this plugin is called `api` you can find the options available by 
 `bap --help | grep -C 4 api`
 
---api-path=somefolder where somefolder has a folder called C in it.
---api-show
---api-list-paths
+- `--api-path=somefolder` where somefolder has a folder called C in it.
+- `--api-show`
+- `--api-list-paths`
 
 ### Saving and restoring the knowledge base
--k
---project
---update
+You can have bap save it's info and restore it. `bap a.out -k my_knowledge_base --update` will build a knowledge base. Leaving out `--update` is useful for read only access to the KB. This is used for example with `bap analyze -k my_knowledge_base`, which gives a kind of repl for exploring some pieces (but not all) of the knowledge base. Try typing `help` at the prompt for more info.
 
 ### Recipes
 
+Recipes are bundles of command line flags I think. Well, they are at least that. This can save copying ad pasting some huge command a bunch. <https://github.com/BinaryAnalysisPlatform/bap-toolkit>  Has some interesting example recipes
 
 ### Interesting Places to Look
 - Ivan's gists - https://gist.github.com/ivg
@@ -257,7 +258,23 @@ https://gitter.im/BinaryAnalysisPlatform/bap?at=610c3e322453386b6c373696
 https://en.wikipedia.org/wiki/Dependency_injection
 Plugins are meant to be mixed and matched. They extend the functionality of other bap commands.
 
-"Scripts" are a thing I've made up and am not sure are actually recommended. You can make a standalone binary using that call Bap
+You make plugins by building and installing it
+
+```
+bapbuild comment.plugin
+bapbundle install comment.plugin
+```
+Any side effects of setting up the plugin should happen inside an `Extension.declare`. It consistently causes problem that bap requires certain things to happen at certain stages, and if you go off the reservation, you'll probably eat shit.
+
+```
+let () =
+  Bap_main.Extension.declare (fun _ctx -> dostuff)
+```
+
+The stuff you might do might involve declaring new slots in the knowledge base, declaring new interpetations, declaring new primus components, stuff like that.
+
+### Scripts
+"Scripts" are a thing I've made up and am not sure are actually recommended. You can make a standalone binary using that call Bap_main.init.
 To make a basic file to explore some binary, first make a dune file
 
 ```lisp
@@ -276,7 +293,9 @@ open Bap.Std
 include Self()
 
 (* Must call init before everything*)
-let _ : (unit, Bap_main.error) Stdlib.result = Bap_main.init ()
+let () = match Bap_main.init () with
+        | Ok _ -> ()
+        | Error s -> failwith s
 
 (* Load a file as a project *)
 let myfile = "/home/philip/Documents/ocaml/a.out"

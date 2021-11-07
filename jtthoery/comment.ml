@@ -22,23 +22,36 @@ module Toy_implementation : T.Core = struct
       ~desc:"An example slot put into the knowledge base. Will be populated with the string 'hello world'"
       "comment" KB.Domain.string
 
-  let blk (label : T.label) (data : T.data T.eff) (ctrl : T.ctrl T.eff)
+    let blk (label : T.label) (data : T.data T.eff) (ctrl : T.ctrl T.eff)
       : unit T.eff =
+    let* data = data in
     let nop = Theory.Effect.empty Theory.Effect.Sort.bot in
-    KB.return @@
-    KB.Value.put comment_slot nop "hello, world"
+    (* KB.return data *)
+    let comment = KB.Value.get comment_slot data in
+    KB.return @@ KB.Value.put comment_slot nop "helloblock"
+  
+    (*
 
-    let seq a b
+    KB.return @@ nop
+
+    Ok sometimes instructions translate to multiple blocks. Is that right?
+    Or perhaps a sequence is laweays wrapped in a block?
+
+   *)
+   
+    let seq eff1 eff2
       : 'a T.eff =
+    let* eff1 = eff1 in
+    let* eff2 = eff2 in
     let nop = Theory.Effect.empty Theory.Effect.Sort.bot in
-    KB.return @@
-    KB.Value.put comment_slot nop "hello, world"
-
+    KB.return @@ KB.Value.put comment_slot eff1 "helloseq" 
+    (* KB.return eff1  *)
+(*
     let set a b =
     let nop = Theory.Effect.empty Theory.Effect.Sort.bot in
     KB.return @@
-    KB.Value.put comment_slot nop "hello, world"
-
+    KB.Value.put comment_slot nop "helloset"
+*)
 end
 
 let () =

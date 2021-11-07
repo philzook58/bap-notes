@@ -1,3 +1,4 @@
+# Primus
 
 Primus is an extensible interpreter. You can use it for fuzzing, symbolic execution, taint tracking, and more.
 
@@ -87,7 +88,7 @@ To see the list of available observations type
 
 ## Ocaml
 
-Primus is written as a generic monad transformer. You should ignore that. Do not look in the `Machine` module. You actually want `Analysis.t` which is this monad trasnformer specialized to the knowledge base monad.
+Primus is written as a generic monad transformer. You should ignore that. Do not look in the `Machine` module. You actually want `Analysis.t` which is this monad transformer specialized to the knowledge base monad.
 
 https://binaryanalysisplatform.github.io/bap/api/master/bap-primus/Bap_primus/Std/Primus/Analysis/index.html
 
@@ -103,7 +104,8 @@ There is a short tutorial in the wiki here https://github.com/BinaryAnalysisPlat
 
 ## State
 
-You can add state. You need to register the state globally. It looks like this
+You can add new kinds of state. You need to register the state globally with a unique uuid (it's odd). It looks like this to declare state
+
 ```ocaml
 let state =
   Primus.Machine.State.declare
@@ -122,7 +124,7 @@ To make a component, write a function in the `Analysis.t` monad that registers t
 Most observations of interest are in the `Primus.Interprete` module https://binaryanalysisplatform.github.io/bap/api/master/bap-primus/Bap_primus/Std/Primus/Interpreter/index.html
 
 ## Linker
-It may surprise you that imnportant functionality is in the `Linker` module.
+It may surprise you that really important functionality is in the `Linker` module.
 
 https://binaryanalysisplatform.github.io/bap/api/master/bap-primus/Bap_primus/Std/Primus/Linker/index.html
 
