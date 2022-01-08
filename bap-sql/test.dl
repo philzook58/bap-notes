@@ -1,0 +1,6 @@
+
+.decl unop(out : symbol,op : symbol, in : symbol )
+.input unop (IO=sqlite, filename="t_values.db")
+.output unop (IO=sqlite, filename="souffle_out.db")
+
+unop("a", "mov", "c").

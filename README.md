@@ -248,14 +248,15 @@ Bap is organized is an extensible kind of decentralized way that I find very con
 There are at least 3 different ways you might extend bap.
 ### Commands 
 Commands do something different than the default bap command at the top level.
-
+- <https://binaryanalysisplatform.github.io/bap/api/master/bap-main/Bap_main/Extension/Command/index.html> This describes how to build commands with a nice example at the bottom
 ### Plugins
 
 > And this is the whole idea of BAP as a framework instead of a library. There are extension points, which enable you to extend bap without having to worry about how to create a project, how to properly find the file, how to specify the architecture and other parameters. You just register a pass that takes a ready project and focus on your analysis instead of writing all this boilerplate. E.g., in the example above it is rightful to assume that you want to get the project before starting enqueing jobs, so you can register a pass that will be called once the project is ready and if the pass is selected,
 
-https://binaryanalysisplatform.github.io/bap/api/master/bap-main/Bap_main/index.html
-https://gitter.im/BinaryAnalysisPlatform/bap?at=610c3e322453386b6c373696
-https://en.wikipedia.org/wiki/Dependency_injection
+- <https://binaryanalysisplatform.github.io/bap/api/master/bap-main/Bap_main/index.html> The bap main documentation. This describes extensions and building using `bapbuild` and `bapbundle`
+
+- https://gitter.im/BinaryAnalysisPlatform/bap?at=610c3e322453386b6c373696
+- https://en.wikipedia.org/wiki/Dependency_injection
 Plugins are meant to be mixed and matched. They extend the functionality of other bap commands.
 
 You make plugins by building and installing it
