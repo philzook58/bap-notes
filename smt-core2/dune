@@ -1,0 +1,3 @@
+(library
+ (name smt)
+ (libraries bap core_kernel))
