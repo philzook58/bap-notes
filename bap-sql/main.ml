@@ -45,3 +45,28 @@ let main _ =
   ()
 
 let () = main ()
+
+
+let create_unop = "CREATE TABLE unop (out TEXT NOT NULL, op TEXT NOT NULL, a TEXT NOT NULL);"
+let insert_unop = "INSERT INTO unop VALUES (?,?,?);"
+
+let create_binop = "CREATE TABLE binop (out TEXT NOT NULL, op TEXT NOT NULL, a TEXT NOT NULL, b TEXT NOT NULL);"
+let insert_binop = "INSERT INTO binop VALUES (?,?,?,?);"
+
+let create_store = "CREATE TABLE store (out TEXT NOT NULL, mem TEXT NOT NULL, addr TEXT NOT NULL, v TEXT NOT NULL);"
+let insert_store = "INSERT INTO store VALUES (?,?,?,?);"
+
+let create_load = "CREATE TABLE load (out TEXT NOT NULL, mem TEXT NOT NULL, addr TEXT NOT NULL);"
+let insert_load = "INSERT INTO load VALUES (?,?,?);"
+
+(*
+bil or bir?
+I don't have a flatten pass for bil
+
+https://discuss.ocaml.org/t/binding-to-sql-queries/9261
+Some other ways of binding to sql
+
+
+
+
+*)
