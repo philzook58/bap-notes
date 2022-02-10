@@ -19,9 +19,9 @@ let domain = KB.Domain.optional "cst"
     ~inspect:ident
 
 (* I guess we could have equality based on instatiating the transformer *)
-let wp_domain : (Sexp.t -> Sexp.t) option KB.Domain.t = KB.Domain.optional
- ~inspect:(fun wp -> wp (Sexp.Atom "true")) 
- ~equal:(fun _ _ -> false) "wp"
+let wp_domain : (Sexp.t -> Var.t list -> Sexp.t) option KB.Domain.t = KB.Domain.optional
+ ~inspect:(fun wp -> wp (Sexp.Atom "POST") [Var.create "ALLVARS" (Imm 32)]) 
+ ~equal:(fun wp wp' -> true) "wp"
 
 
 
@@ -35,16 +35,13 @@ let pslot = KB.Class.property Theory.Value.cls "val"
     ~public:true
     domain
 
-let chc = KB.Class.property Theory.Program.cls "chcval"
+let chc = KB.Class.property Theory.Program.cls "chc-val"
     ~package
     ~public:true
     domain
 
-let promise_chc () = 
-  KB.promise chc (fun label ->
-    KB.collect Theory.Semantics.slot label >>= fun sem ->
-      KB.return @@ Option.map (KB.Value.get eslot sem) ~f:(fun wp -> wp @@ Sexp.Atom "true")
-    )
+let addr_size = 32
+
 (*
 Make weakest precondition function eslot
 Add chc slot
@@ -75,7 +72,9 @@ module AllVars : Theory.Core = struct
 end
 *)
 
-module AllVars : Theory.Core = struct
+
+
+module AllVars = struct
   include Theory.Empty
   (* type t = Sexp.t *)
   let domain = KB.Domain.powerset (module Var) ~inspect:Var.sexp_of_t "vars"
@@ -128,8 +127,8 @@ module AllVars : Theory.Core = struct
     pure s @@ Var.Set.union x y
 
   module Minimal = struct
-    let b0 = ret@@pure Theory.Bool.t (atom "0")
-    let b1 = ret@@pure Theory.Bool.t (atom "1")
+    let b0 = ret@@pure Theory.Bool.t (atom "#b0")
+    let b1 = ret@@pure Theory.Bool.t (atom "#b1")
 
     let unk s = ret@@empty s
 
@@ -246,23 +245,13 @@ module AllVars : Theory.Core = struct
   include Theory.Basic.Make(Minimal)
 end
 
-module Herbrand : Theory.Core = struct
-  (* type t = Sexp.t *)
-  include Theory.Empty
 
-  (* collect sequence of 
-  [ ; ; ; ] and Set of variables updated?
-  set of variables updated * transition_relation sexp.t
-  
-  *)
-  let pure s cst = KB.Value.put pslot (Theory.Value.empty s) (Some cst)
-  let eff s cst = KB.Value.put eslot (Theory.Effect.empty s) (Some cst)
-  let data = eff Theory.Effect.Sort.bot
-  let ctrl = eff Theory.Effect.Sort.bot
-  let ret = KB.return
+module Z3Helpers = struct
   let atom s = Sexp.Atom s
+  
 
   let list = function
+    | Sexp.Atom "let" :: rest -> Sexp.List (Sexp.Atom "let" :: rest)
     | [Sexp.Atom op;
        List ((Atom opx) :: xs);
        List ((Atom opy) :: ys)]
@@ -276,17 +265,32 @@ module Herbrand : Theory.Core = struct
       Sexp.List (Sexp.Atom op :: x :: ys)
     | xs -> Sexp.List xs
 
-  let utag a b = list [atom "_"; a; b]
-  let sort_subscript (s : 'a Theory.Value.Sort.t) : string = 
-    let s = Theory.Value.Sort.forget s in
-    match Theory.Bitv.refine s with
-    | Some s -> Int.to_string (Theory.Bitv.size s) (* utag (atom "BitVec") (atom @@ Int.to_string (Theory.Bitv.size s)) *)
-    | None -> 
-    match Theory.Bool.refine s with
-    | Some _ -> "Bool"
-    | None -> "failure to refine z3 sort"
+    let app x xs = list (atom x :: xs)
 
-let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t = 
+    let escapes = [
+      "%", "%%";
+      "#", "%P";
+    ]
+    let escape s =
+      let s = String.substr_replace_all s ~pattern:"%" ~with_:"%%" in
+      String.substr_replace_all s ~pattern:"#" ~with_:"%P"
+    let unescape s = ()
+
+    let utag a b = list [atom "_"; a; b]
+
+    let z3_const s x =
+      let size = Theory.Bitv.size s in
+      let x = Bitvec.to_bigint x in
+      if Int.rem size 4 = 0 then
+        let size = size / 4 in (* print in hex *)
+        let str = Z.format (sprintf "%%0%dx" size) x in
+        sprintf "#x%s" str
+      else
+        let str = Z.format (sprintf "%%0%db" size) x in
+        sprintf "#b%s" str
+
+
+    let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t = 
       let s = Theory.Value.Sort.forget s in
       match Theory.Bitv.refine s with
       | Some s -> utag (atom "BitVec") (atom @@ Int.to_string (Theory.Bitv.size s))
@@ -295,6 +299,54 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
       | Some _ -> atom "Bool"
       | None -> atom "failure to refine z3 sort"
 
+    let svar v = atom @@ escape @@ (Theory.Var.name v)
+    let svar' v = atom @@ escape @@ (Var.to_string v) (* I should escape though *)
+    let z3_sort' (typ : typ) = 
+      let bitvec n = utag (atom "BitVec") (atom @@ Int.to_string n) in
+      match typ with
+      | Imm n ->  bitvec n
+      | Mem (addr_size, size) -> 
+         let range_size = Size.in_bits size in
+         let dom_size = Size.in_bits addr_size in
+         app "Array" [bitvec dom_size; bitvec range_size]
+      | _ -> failwith (sprintf "unimplemented z3_sort %a" Type.pps typ)
+    let var_sorts' vars : Sexp.t list =
+        List.map vars ~f:(fun v ->
+            list [svar' v; z3_sort' (Var.typ v)])
+    let var_sorts vars : Sexp.t =
+      list @@ var_sorts' vars
+end
+
+module Herbrand : Theory.Core = struct
+  (* type t = Sexp.t *)
+  include Theory.Empty
+  open Z3Helpers
+
+  (* collect sequence of 
+  [ ; ; ; ] and Set of variables updated?
+  set of variables updated * transition_relation sexp.t
+  
+  *)
+  let pure s cst = KB.Value.put pslot (Theory.Value.empty s) (Some cst)
+  let eff s cst = KB.Value.put eslot (Theory.Effect.empty s) (Some cst)
+  let data = eff Theory.Effect.Sort.bot
+  let ctrl = eff Theory.Effect.Sort.bot
+  let ret = KB.return
+
+(*
+  let sort_subscript (s : 'a Theory.Value.Sort.t) : string = 
+    let s = Theory.Value.Sort.forget s in
+    match Theory.Bitv.refine s with
+    | Some s -> Int.to_string (Theory.Bitv.size s) (* utag (atom "BitVec") (atom @@ Int.to_string (Theory.Bitv.size s)) *)
+    | None -> 
+    match Theory.Bool.refine s with
+    | Some _ -> "Bool"
+    | None -> "failure to refine z3 sort"
+*)
+
+
+
+(*
   let rho_sorts =
     let forget = Theory.Value.Sort.forget in
     [forget Theory.Bool.t] 
@@ -306,10 +358,10 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
     atom @@ "rho_new_" ^ (sort_subscript s)
   let rho_temp_s  (s : 'a Theory.Value.Sort.t) : Sexp.t =
     atom @@ "rho_temp_" ^ (sort_subscript s)
-  
-  let svar v = atom @@ "\"" ^ (Theory.Var.name v) ^ "\""
+  *)
+
       
-  let app x xs = list (atom x :: xs)
+
 
   let psort = Theory.Value.sort
   let esort = Theory.Effect.sort
@@ -336,12 +388,12 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
     let s = esort v in
     f s (KB.Value.get eslot v)
 
- (* let (>>=>?) x f =
+  let (>>=>?) x f =
     x >>= fun v ->
     let s = esort v in
     match KB.Value.get eslot v with
-    | None -> f s (list [])
-    | Some x -> f s x *)
+    | None -> f s (fun post vars -> post)
+    | Some x -> f s x
 
 
   let empty = Theory.Value.empty
@@ -365,16 +417,18 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
     pure s @@ app op [x; y]
 
 
-  module Minimal = struct
-    let b0 = ret@@pure Theory.Bool.t (atom "false")
-    let b1 = ret@@pure Theory.Bool.t (atom "true")
+  module Minimal : Theory.Minimal = struct
+    let b0 = ret@@pure Theory.Bool.t (atom "#b0")
+    let b1 = ret@@pure Theory.Bool.t (atom "#b1")
 
     let unk s = ret@@empty s
 
     let var v =
       let s = Theory.Var.sort v in
       (* Variable names in bap can be unacceptable characters for smtlib, so we use the string theory as labels *)
-      ret@@pure s@@ list [atom "select" ; rho_s s; svar v]
+      (* alternative: use an escape character. % for example. and then % -> %% *)
+      (* ret@@pure s@@ list [atom "select" ; rho_s s; svar v] *)
+      ret @@ pure s @@ svar v
 
     let let_ v x y =
       x >>-> fun _ x ->
@@ -382,7 +436,7 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
       let name = Theory.Var.name v in
       match x,y with
       | Some x, Some y ->
-        pure s@@app "let" [atom name; x; y]
+        pure s@@app "let" [list [atom name; x]; y]
       | _ -> empty s
 
     let ite c x y =
@@ -390,32 +444,54 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
       x >>->? fun s x ->
       y >>|>? fun _ y -> match c with
       | None -> empty s
-      | Some c -> pure s@@app "ite" [c; x; y]
+      | Some c -> pure s@@app "ite" [app "=" [c; atom "#b1"]; x; y]
 
-    let inv = unary "not"
-    let and_ = monoid "and"
-    let or_ = monoid "or"
-    let z3_const s x = 
-      let size = (Theory.Bitv.size s) / 4 in (* print in hex *)
-      let x = Bitvec.to_bigint x in
-      print_endline (sprintf "%%0%dx" size);
-      let str = Z.format (sprintf "%%0%dx" size) x in
-      sprintf "#x%s" str
+    let inv = unary "bvnot"
+    let and_ = monoid "bvand"
+    let or_ = monoid "bvor"
+
     let int s x = ret@@pure s@@atom (z3_const s x)
-    let msb x = unary_s Theory.Bool.t "msb" x
-    let lsb x = unary_s Theory.Bool.t "lsb" x
+    let msb x = 
+      let s = Theory.Bool.t in
+      x >>|> fun s' -> function
+    | None -> empty s
+    | Some v -> 
+      let size = atom @@ string_of_int @@ Theory.Bitv.size s' in
+      pure s @@ 
+          app "ite" [
+                app "=" [app "extract" [size; size; v]; atom "#b1"]; (* size - 1? We'll get an error if this is wrong. Fine. *)
+                atom "true"; 
+                atom "false"]
+
+    let lsb x = 
+      let s = Theory.Bool.t in
+      x >>|> fun _ -> function
+    | None -> empty s
+    | Some v -> pure s @@ list [list [atom "_"; atom "extract"; atom "0"; atom "0"]; v]
+         (*app "ite" [
+                app "=" [list [list [atom "_"; atom "extract"; atom "0"; atom "0"]; v]; atom "#b1"];
+                atom "true"; 
+                atom "false"] *)
+      (*unary_s Theory.Bool.t "msb" x *)
+      (* x >>->? fun _ x ->
+      ret @@ pure Theory.Bool.t @@ fun _ _ -> 
+    atom "true"; 
+    atom "false"] *)
+      
+     (* *)
+(*    let lsb x = unary_s Theory.Bool.t "lsb" x *)
     let neg x = unary "bvneg" x
     let not x = unary "bvnot" x
     let add x = monoid "bvadd" x
     let sub x = monoid "bvsub" x
     let mul x = monoid "bvmul" x
     let div x = monoid "bvdiv" x
-    let sdiv x = monoid "s/" x
-    let modulo x = monoid "mod" x
-    let smodulo x = monoid "signed-mod" x
-    let logand x = monoid "logand" x
-    let logor x = monoid "logor" x
-    let logxor x = monoid "logxor" x
+    let sdiv x = monoid "bvsdiv" x
+    let modulo x = monoid "mod?" x
+    let smodulo x = monoid "bvsmod" x
+    let logand x = monoid "bvand" x
+    let logor x = monoid "bvor" x
+    let logxor x = monoid "bvxor" x
 
     let genshift name fill x off =
       fill >>-> fun _ fill ->
@@ -425,27 +501,68 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
       | Some fill, Some x, Some off ->
         pure s @@ app name [fill; x; off]
       | _ -> empty s
-    let shiftr x = genshift "shiftr" x
-    let shiftl x = genshift "shiftl" x
-    let sle x = monoid_s Theory.Bool.t "bvsle" x
-    let ule x = monoid_s Theory.Bool.t "bvule" x
+    let shiftr fill x off =
+    fill >>-> fun _ fill ->
+    x >>-> fun s x ->
+    off >>|> fun _ off ->
+    match fill, x, off with
+    | Some fill, Some x, Some off ->
+      pure s @@  app "ite" [app "=" [fill; atom "#b1"];
+        app "bvlshr" [x ; off]
+      ; app "bvlshr" [x ; off] (* do something else here *)
+      ]
+    | _ -> empty s
+    let shiftl fill x off =
+      fill >>-> fun _ fill ->
+      x >>-> fun s x ->
+      off >>|> fun _ off ->
+      match fill, x, off with
+      | Some fill, Some x, Some off ->
+        pure s @@  app "ite" [app "=" [fill; atom "#b1"];
+          app "bvshl" [x ; off]
+        ; app "bvshl" [x ; off] (* do something else here *)
+        ]
+      | _ -> empty s
+    let sle x y = (* monoid_s Theory.Bool.t "bvsle" x *)
+      x >>-> fun _ x ->
+      y >>|> fun _ y ->
+      match x, y with
+      | Some x, Some y -> pure Theory.Bool.t @@ app "ite" [app "bvsle" [x; y]; atom "#b1"; atom "#b0"] 
+      | _ -> empty Theory.Bool.t
+
+
+    let ule x y = 
+      x >>-> fun _ x ->
+      y >>|> fun _ y ->
+      match x, y with
+      | Some x, Some y -> pure Theory.Bool.t @@ app "ite" [app "bvule" [x; y]; atom "#b1"; atom "#b0"] 
+      | _ -> empty Theory.Bool.t
+      (* monoid_s Theory.Bool.t "bvule" x *)
 
 
     let cast s fill exp =
       fill >>-> fun _ fill ->
       exp >>|> fun s' x ->
-      let ct = sprintf "%d" @@ Theory.Bitv.size s in
+      let newsize = Theory.Bitv.size s' in
+      let size = Theory.Bitv.size s in
+     (** let ct = sprintf "%d" @@  in *)
       match fill, x  with
       | Some fill, Some x ->
+        (* TODO: deal with fill *)
         if Theory.Value.Sort.same s s'
         then pure s x
+        else if size < newsize then
+          let pad = z3_const (Theory.Bitv.define Int.(newsize - size)) Bitvec.zero in
+          pure s @@ app "concat" [atom pad ; x]
         else
-          pure s@@list [
+          let pad = z3_const (Theory.Bitv.define Int.(newsize - size)) Bitvec.zero in
+          pure s @@ app "extract" [atom "1" ; atom (string_of_int newsize); x]
+          (* pure s@@list [
             atom "cast";
             atom ct;
             fill;
             x
-          ]
+          ] *)
       | _ -> empty s
 
     let concat s xs =
@@ -454,7 +571,7 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
       | None -> empty s
       | Some xs -> pure s @@ app "concat" xs
 
-    let append s x y = monoid_s s "append" x y
+    let append s x y = monoid_s s "concat" x y (* Do I need to cast the result too? *)
 
     let load m x =
       m >>-> fun s m ->
@@ -479,36 +596,56 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
 
     let set v x = x >>|> fun _ x ->
       let s = Theory.Var.sort v in
-      let rho = rho_s s in
-      let rho_new = (rho_new_s s) in
+     (* let rho = rho_s s in
+      let rho_new = (rho_new_s s) in *)
       match x with
       | None -> nil
-      | Some x -> data@@app "=" [
+      | Some x -> data@@
+       fun post _ -> 
+        list [atom "let"; 
+        list [list [svar v; x]];
+              post]
+        (* list [atom "let"; 
+        list [rho; list [atom "store"; rho; (svar v); x]];
+        post] *)
+      (* app "=" [
           rho_new;
           list [atom "store"; rho; (svar v); x]
-        ]
+        ] *)
 
+    
     let jmp x = x >>|> fun _ x -> match x with
       | None -> nil
-      | Some x -> ctrl@@app "goto" [x]
+      | Some x -> ctrl@@ fun post all_vars -> 
+        let all_vars = List.map ~f:svar' all_vars in
+        list [atom "and"; 
+              list (atom "label" :: x :: all_vars);
+              post]
+
+      (*
+      WP:
+      Var.Set.t -> Sexp.t -> Sexp.t
+      Because I need to knwo the ambient W vector
+      *)
 
     let goto dst =
       KB.collect Theory.Label.addr dst >>= function
       | Some dst ->
-        ret@@ctrl@@app "goto" [atom (Bitvec.to_string dst)]
+        ret@@ctrl@@ fun post vars -> app "label" (atom (z3_const (Theory.Bitv.define addr_size) dst) :: List.map ~f:svar' vars)
       | None ->
         KB.Object.repr Theory.Program.cls dst >>= fun dst ->
-        ret@@ctrl@@app "goto" [atom dst]
+        ret@@ctrl@@ fun post vars -> app "goto TODO" [atom dst]
 
     let both s xs ys =
       match xs,ys with
       | None,None -> ret nil
-      | Some r,None
+      | Some r, None
       | None, Some r -> ret@@eff s r
       | Some xs, Some ys ->
         ret@@eff s@@
+          fun post vars -> (xs (ys post vars) vars)
         (* Relation composition. I don't know if z3 is smart enough to chew on this. Maybe it is. *)
-        let rhos = List.map rho_sorts ~f:(fun s -> 
+        (* let rhos = List.map rho_sorts ~f:(fun s -> 
           let rho = rho_s s in
           let rho_new = rho_new_s s in
           let rho_temp = rho_temp_s s in
@@ -523,25 +660,52 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
               list [rho; rho_temp]
               ); ys] in
           list [atom "exists" ; list rho_temp_def;
-            list [atom "and"; xs; ys] ]
-
+            list [atom "and"; xs; ys] ] *)
+ 
         let seq xs ys =
           xs >>=> fun s xs ->
           ys >>=> fun _ ys ->
           both s xs ys
+          
     
-        let blk _ xs ys =
+        let blk label xs ys =
           xs >>=> fun _ xs ->
           ys >>=> fun _ ys ->
-          both Theory.Effect.Sort.top xs ys
-    
+         (* fun s vars -> list [
+            atom "and";
+           (wpdata (wpctrl s));
+           [forall  ;atom "=>" ; atom ""]
+          ] "(forall %a (=> (label %a %a) %a) )" pp_varset varset pp_label label pp_varset vars
+*)
+          both Theory.Effect.Sort.top xs ys (* >>=>? fun s wp ->
+              ret@@eff s@@ fun post vars -> 
+            let all_vars = List.map ~f:svar' vars in
+            let bind_vars = List.map vars ~f:(fun v ->
+              list [svar' v ; z3_sort' (Var.typ v) ]
+              ) in
+            let wp = wp post vars in
+            wp *)
+                (* list [
+              atom "and";
+              wp;
+              list [atom "forall"; 
+                    list bind_vars; (* put types in there.*)
+                    list [atom "=>";
+                         list (atom "label" :: (atom @@ Tid.to_string label) :: all_vars);
+                         wp
+                    ]
+              ]
+            ] *)
+        (*
+        
+        *)
         let repeat cnd body =
           cnd >>-> fun _ cnd ->
           body >>=>? fun s body ->
           match cnd with
           | None -> ret@@nil
           | Some cnd ->
-            ret@@eff s@@app "while" [cnd; body]
+            ret@@eff s@@ fun _ _ -> failwith "repeat not implemented"
     
         let branch cnd yes nay =
           cnd >>-> fun _ cnd ->
@@ -550,7 +714,8 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
           match cnd with
           | None -> ret@@nil
           | Some cnd ->
-            ret@@eff s@@app "if" [cnd; yes; nay]
+            let cnd = app "=" [cnd; atom "#b1"] in
+            ret@@eff s@@ fun post vars -> app "ite" [cnd; yes post vars; nay post vars]
       end
       include Theory.Basic.Make(Minimal)
     (*
@@ -783,9 +948,42 @@ let z3_sort (s : 'a Theory.Value.Sort.t) : Sexp.t =
       let compound m = binary_fi "compound" m
       let rootn m = binary_fi "rootn" m
       let pown m = binary_fi "pown" m *)
+
+
 end
 
 
+let promise_chc () = 
+  let open Z3Helpers in
+  KB.promise chc (fun label ->
+    KB.collect Theory.Label.addr label >>= fun addr ->
+    KB.collect Theory.Semantics.slot label >>= fun sem ->
+      let (let*) x f = Option.bind x ~f in
+      KB.return (
+      let* wp = KB.Value.get eslot sem in 
+      let* addr = addr in
+      let addr = z3_const (Theory.Bitv.define addr_size) addr in
+      let all_vars =[atom "ALLVARS"] in
+      let bind_vars = list all_vars in
+      let fallthrough = app "label" (atom "FALLTHROUGH" :: all_vars) in
+      Option.return @@ 
+      app "forall"
+      [ bind_vars;
+        app "=>"
+           [app "label" (atom addr :: all_vars ) ;
+           wp fallthrough []]]
+     (* KB.return @@ Option.map (KB.Value.get eslot sem) ~f:(fun wp -> wp (Sexp.Atom "true") []) *)
+    ))
+
+    (*
+                  list [atom "forall"; 
+                    list bind_vars; (* put types in there.*)
+                    list [atom "=>";
+                         list (atom "label" :: (atom @@ Tid.to_string label) :: all_vars);
+                         wp
+                    ]
+              ]
+            ] *)
 let herbrand_enabled = Extension.Configuration.parameter
     Extension.Type.(bool =? false) "enable"
     ~as_flag:true
@@ -805,10 +1003,84 @@ let enable_varset () =
     ~package
     ~name:"varset" (KB.return (module AllVars : Theory.Core))
 
+let pp_chc ppf proj =
+  let open Z3Helpers in
+  let kb = Toplevel.current () in
+  let res = KB.run Theory.Program.cls 
+  (KB.objects Theory.Program.cls >>= fun progs ->
+  let* allvars = KB.Seq.fold progs ~init:Var.Set.empty 
+    ~f:(fun vars prog -> 
+      KB.collect Theory.Semantics.slot prog >>= fun sem ->
+      let vars' = KB.Value.get AllVars.eslot sem in
+      KB.return @@ Var.Set.union vars vars'
+      ) 
+  in
+  let allvars = Var.Set.to_list allvars in
+  (* Format.fprintf ppf "#define ALLVARS"; *)
+  let sorts = list @@ utag (atom "BitVec") (atom (string_of_int addr_size)) :: List.map ~f:(fun v -> z3_sort' (Var.typ v)) allvars in
+  Format.fprintf ppf "(declare-fun label %a Bool)@ " Sexp.pp_hum sorts;
+  List.iter (var_sorts' allvars) ~f:(fun sexp ->
+    let List sexp = sexp in
+    let sexp = app "declare-const" sexp in
+    Format.fprintf ppf "%a@ " Sexp.pp_hum sexp;
+  );
+
+
+  KB.Seq.iter progs ~f:(fun prog -> 
+    KB.collect Theory.Semantics.slot prog >>= fun sem ->
+    let wp = KB.Value.get eslot sem in 
+    match wp with
+    | None -> KB.return ()
+    | Some wp -> 
+    KB.collect Theory.Label.addr prog >>= fun addr ->
+    match addr with
+    | None -> KB.return ()
+    | Some addr ->
+    let z3_addr = z3_const (Theory.Bitv.define addr_size) addr in
+    let all_vars = List.map ~f:Z3Helpers.svar' allvars in
+    (* KB.collect chc prog >>= fun chc -> *)
+    KB.collect Memory.slot prog >>= fun mem ->
+    match mem with
+      | None -> KB.return ()
+      | Some mem ->
+    let fall_addr = Bitvec.(addr + Bitvec.of_string (string_of_int (Memory.length mem))) in
+    let fall_addr =if addr_size = 64 then 
+      z3_const (Theory.Bitv.define addr_size) Bitvec.(fall_addr mod m64)
+  else  begin
+    assert (addr_size = 32);
+    z3_const (Theory.Bitv.define addr_size) Bitvec.(fall_addr mod m32)
+  end
+   in
+    let fallthrough = app "label" (atom fall_addr :: all_vars) in
+    let bind_vars = var_sorts allvars in
+    let chc =  app "assert" [app "forall"
+                [ bind_vars;
+                  app "=>"
+                    [app "label" (atom z3_addr :: all_vars ) ;
+                    wp fallthrough allvars]]]
+    in
+    Format.fprintf ppf ";%a@\n" Bitvec.pp addr;
+    Format.fprintf ppf "%a@ " Sexp.pp_hum chc;
+    KB.return ()
+    ) >>= fun () ->
+      KB.Object.create Theory.Program.cls
+      ) 
+      kb
+  in
+  match res with
+  | Ok _ -> ()
+  | Error _ -> failwith "KB error"
+  
+
+
 let () = Extension.declare @@ fun ctxt ->
   (* decide_name_from_possible_name (); *)
   (* if Extension.Configuration.get ctxt herbrand_enabled
   then begin enable_herbrand ()(* ; enable_varset () *) end; *)
+  enable_varset ();
   enable_herbrand () ;
   promise_chc ();
+  let pp_chc =  Regular.Std.Data.Write.create ~pp:(pp_chc) () in
+  Project.add_writer  ~ver:"1" "chc"
+  ~desc:"dumps the chc" pp_chc;
   Ok ()

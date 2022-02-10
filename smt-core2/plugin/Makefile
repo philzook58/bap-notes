@@ -4,6 +4,6 @@ smt.plugin: smt.ml
 showchc.plugin: showchc.ml
 	bapbuild -pkg=bap-primus showchc.plugin
 
-install: smt.plugin showchc.plugin
+install: smt.plugin #showchc.plugin
 	bapbundle install smt.plugin
-	bapbundle install showchc.plugin
+	#bapbundle install showchc.plugin

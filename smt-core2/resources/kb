@@ -1,0 +1,845 @@
+(in-package example.o)
+(in-class core:program)
+(bap:start-pseudo-node
+  ((core:label-aliases (start-pseudo-node))
+   (core:label-name (start-pseudo-node))))
+(bap:exit-pseudo-node
+  ((core:label-aliases (exit-pseudo-node))
+   (core:label-name (exit-pseudo-node))))
+(0x0
+  ((bap:lisp-name (llvm-armv7:SUBri))
+   (bap:insn ((SUBri R3 R0 0x0 0xe Nil CPSR)))
+   (bap:mem ("0: 00 30 50 e2"))
+   (bap:bil-code
+    "{
+       #12582910 := R0
+       R3 := R0
+       CF := 0 <= #12582910
+       VF := high:1[#12582910 & (#12582910 ^ R3)]
+       NF := high:1[R3]
+       ZF := R3 = 0
+     }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Var (num 12582910) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name CF) (ver 0))) (sort (Sym core:Bool)))
+       ((name (Reg (name NF) (ver 0))) (sort (Sym core:Bool)))
+       ((name (Reg (name R0) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name R3) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name VF) (ver 0))) (sort (Sym core:Bool)))
+       ((name (Reg (name ZF) (ver 0))) (sort (Sym core:Bool)))))
+     (smt:eff
+      ((let
+        ((%P12582910 R0))
+        (let
+         ((R3 R0))
+         (let
+          ((CF (bvule #x00000000 %P12582910)))
+          (let
+           ((VF
+             (ite
+              (=
+               ((_ extract 0 0)
+                (concat
+                 #b0000000000000000000000000000000
+                 (ite
+                  false
+                  (bvlshr (bvand %P12582910 (bvxor %P12582910 R3)) #x0000001f)
+                  (bvlshr (bvand %P12582910 (bvxor %P12582910 R3)) #x0000001f))))
+               #b1)
+              true
+              false)))
+           (let
+            ((NF
+              (ite
+               (=
+                ((_ extract 0 0)
+                 (concat
+                  #b0000000000000000000000000000000
+                  (ite false (bvlshr R3 #x0000001f) (bvlshr R3 #x0000001f))))
+                #b1)
+               true
+               false)))
+            (let
+             ((ZF (and (bvule R3 #x00000000) (bvule #x00000000 R3))))
+             POST))))))))
+     (core:eff
+      (((set #12582910 R0)
+        ((set R3 R0)
+         ((set CF (< 0x0 #12582910))
+          ((set VF (lsb (high 1 (logand #12582910 (logxor #12582910 R3)))))
+           ((set NF (lsb (high 1 R3))) (set ZF (= R3 0x0)))))))))
+     (bap:ir-graph
+      "0000000a:
+       0000000b: #12582910 := R0
+       0000000d: R3 := R0
+       0000000f: CF := 0 <= #12582910
+       00000011: VF := high:1[#12582910 & (#12582910 ^ R3)]
+       00000013: NF := high:1[R3]
+       00000015: ZF := R3 = 0")
+     (bap:insn-dests (()))
+     (bap:insn-ops ((R3 R0 0 14 Nil CPSR)))
+     (bap:insn-asm "subs r3, r0, #0")
+     (bap:insn-opcode SUBri)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump false)
+       (:cond false)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow false)
+       (:load false)
+       (:store false)))
+     (bap:bir (%0000000a))
+     (bap:bil
+      "{
+         #12582910 := R0
+         R3 := R0
+         CF := 0 <= #12582910
+         VF := high:1[#12582910 & (#12582910 ^ R3)]
+         NF := high:1[R3]
+         ZF := R3 = 0
+       }")))
+   (core:label-addr (0x0))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)
+   (core:is-subroutine (true))))
+(0x4
+  ((bap:lisp-name (llvm-armv7:Bcc))
+   (bap:insn ((Bcc 0x10 0xd CPSR)))
+   (bap:mem ("4: 04 00 00 da"))
+   (bap:bil-code "{
+                    if (ZF | NF <> VF) {
+                      jmp 0x1C
+                    }
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name NF) (ver 0)))
+        (sort (App (args ((Int 1) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name VF) (ver 0)))
+        (sort (App (args ((Int 1) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name ZF) (ver 0)))
+        (sort (App (args ((Int 1) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff
+      ((ite
+        (or
+         (and (bvule ZF #b1) (bvule #b1 ZF))
+         (not (and (bvule NF VF) (bvule VF NF))))
+        (label #x000000000000001c ALLVARS)
+        POST)))
+     (core:eff ((if (logor (= ZF 0x1) (/= NF VF)) (goto 0x1c) ())))
+     (bap:ir-graph "00000019:
+                    0000001a: when ZF | NF <> VF goto %00000018")
+     (bap:insn-dests ((98)))
+     (bap:insn-ops ((16 13 CPSR)))
+     (bap:insn-asm "ble #0x10")
+     (bap:insn-opcode Bcc)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump true)
+       (:cond true)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow true)
+       (:load false)
+       (:store false)))
+     (bap:bir (%00000019))
+     (bap:bil "{
+                 if (ZF | NF <> VF) {
+                   jmp 0x1C
+                 }
+               }")))
+   (core:label-addr (0x4))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(0x1c
+  ((bap:lisp-name (llvm-armv7:MOVi))
+   (bap:insn ((MOVi R0 0x1 0xe Nil Nil)))
+   (bap:mem ("1c: 01 00 a0 e3"))
+   (bap:bil-code "{
+                    R0 := 1
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name R0) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff ((let ((R0 #x00000001)) POST)))
+     (core:eff ((set R0 0x1)))
+     (bap:ir-graph "0000001e:
+                    0000001f: R0 := 1")
+     (bap:insn-dests (()))
+     (bap:insn-ops ((R0 1 14 Nil Nil)))
+     (bap:insn-asm "mov r0, #1")
+     (bap:insn-opcode MOVi)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump false)
+       (:cond false)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow false)
+       (:load false)
+       (:store false)))
+     (bap:bir (%0000001e))
+     (bap:bil "{
+                 R0 := 1
+               }")))
+   (core:label-addr (0x1c))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(0x20
+  ((bap:lisp-name (llvm-armv7:BX_RET))
+   (bap:insn ((BX_RET 0xe Nil)))
+   (bap:mem ("20: 1e ff 2f e1"))
+   (bap:bil-code "{
+                    jmp LR
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name LR) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff ((and (label LR ALLVARS) POST)))
+     (core:eff ((goto LR)))
+     (bap:ir-graph "00000022:
+                    00000023: goto LR")
+     (bap:insn-dests ((146)))
+     (bap:insn-ops ((14 Nil)))
+     (bap:insn-asm "bx lr")
+     (bap:insn-opcode BX_RET)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump true)
+       (:cond false)
+       (:indirect true)
+       (:call false)
+       (:return true)
+       (:barrier true)
+       (:affect-control-flow true)
+       (:load false)
+       (:store false)))
+     (bap:bir (%00000022))
+     (bap:bil "{
+                 jmp LR
+               }")))
+   (core:label-addr (0x20))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(<0x92> ((core:label-unit (10)) (core:encoding bap:llvm-armv7)))
+(0x8
+  ((bap:lisp-name (llvm-armv7:MOVi))
+   (bap:insn ((MOVi R0 0x1 0xe Nil Nil)))
+   (bap:mem ("8: 01 00 a0 e3"))
+   (bap:bil-code "{
+                    R0 := 1
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name R0) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff ((let ((R0 #x00000001)) POST)))
+     (core:eff ((set R0 0x1)))
+     (bap:ir-graph "00000027:
+                    00000028: R0 := 1")
+     (bap:insn-dests (()))
+     (bap:insn-ops ((R0 1 14 Nil Nil)))
+     (bap:insn-asm "mov r0, #1")
+     (bap:insn-opcode MOVi)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump false)
+       (:cond false)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow false)
+       (:load false)
+       (:store false)))
+     (bap:bir (%00000027))
+     (bap:bil "{
+                 R0 := 1
+               }")))
+   (core:label-addr (0x8))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(0xc
+  ((bap:lisp-name (llvm-armv7:MUL))
+   (bap:insn ((MUL R0 R3 R0 0xe Nil Nil)))
+   (bap:mem ("c: 93 00 00 e0"))
+   (bap:bil-code "{
+                    R0 := R3 * R0
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name R0) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name R3) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff ((let ((R0 (bvmul R3 R0))) POST)))
+     (core:eff ((set R0 (* R3 R0))))
+     (bap:ir-graph "0000002b:
+                    0000002c: R0 := R3 * R0")
+     (bap:insn-dests (()))
+     (bap:insn-ops ((R0 R3 R0 14 Nil Nil)))
+     (bap:insn-asm "mul r0, r3, r0")
+     (bap:insn-opcode MUL)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump false)
+       (:cond false)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow false)
+       (:load false)
+       (:store false)))
+     (bap:bir (%0000002b))
+     (bap:bil "{
+                 R0 := R3 * R0
+               }")))
+   (core:label-addr (0xc))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(0x10
+  ((bap:lisp-name (llvm-armv7:SUBri))
+   (bap:insn ((SUBri R3 R3 0x1 0xe Nil CPSR)))
+   (bap:mem ("10: 01 30 53 e2"))
+   (bap:bil-code
+    "{
+       #12582905 := R3
+       R3 := R3 - 1
+       CF := 1 <= #12582905
+       VF := high:1[(#12582905 ^ 1) & (#12582905 ^ R3)]
+       NF := high:1[R3]
+       ZF := R3 = 0
+     }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Var (num 12582905) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name CF) (ver 0))) (sort (Sym core:Bool)))
+       ((name (Reg (name NF) (ver 0))) (sort (Sym core:Bool)))
+       ((name (Reg (name R3) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))
+       ((name (Reg (name VF) (ver 0))) (sort (Sym core:Bool)))
+       ((name (Reg (name ZF) (ver 0))) (sort (Sym core:Bool)))))
+     (smt:eff
+      ((let
+        ((%P12582905 R3))
+        (let
+         ((R3 (bvsub R3 #x00000001)))
+         (let
+          ((CF (bvule #x00000001 %P12582905)))
+          (let
+           ((VF
+             (ite
+              (=
+               ((_ extract 0 0)
+                (concat
+                 #b0000000000000000000000000000000
+                 (ite
+                  false
+                  (bvlshr
+                   (bvand (bvxor %P12582905 #x00000001) (bvxor %P12582905 R3))
+                   #x0000001f)
+                  (bvlshr
+                   (bvand (bvxor %P12582905 #x00000001) (bvxor %P12582905 R3))
+                   #x0000001f))))
+               #b1)
+              true
+              false)))
+           (let
+            ((NF
+              (ite
+               (=
+                ((_ extract 0 0)
+                 (concat
+                  #b0000000000000000000000000000000
+                  (ite false (bvlshr R3 #x0000001f) (bvlshr R3 #x0000001f))))
+                #b1)
+               true
+               false)))
+            (let
+             ((ZF (and (bvule R3 #x00000000) (bvule #x00000000 R3))))
+             POST))))))))
+     (core:eff
+      (((set #12582905 R3)
+        ((set R3 (- R3 0x1))
+         ((set CF (< 0x1 #12582905))
+          ((set
+            VF
+            (lsb
+             (high 1 (logand (logxor #12582905 0x1) (logxor #12582905 R3)))))
+           ((set NF (lsb (high 1 R3))) (set ZF (= R3 0x0)))))))))
+     (bap:ir-graph
+      "0000002f:
+       00000030: #12582905 := R3
+       00000032: R3 := R3 - 1
+       00000034: CF := 1 <= #12582905
+       00000036: VF := high:1[(#12582905 ^ 1) & (#12582905 ^ R3)]
+       00000038: NF := high:1[R3]
+       0000003a: ZF := R3 = 0")
+     (bap:insn-dests (()))
+     (bap:insn-ops ((R3 R3 1 14 Nil CPSR)))
+     (bap:insn-asm "subs r3, r3, #1")
+     (bap:insn-opcode SUBri)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump false)
+       (:cond false)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow false)
+       (:load false)
+       (:store false)))
+     (bap:bir (%0000002f))
+     (bap:bil
+      "{
+         #12582905 := R3
+         R3 := R3 - 1
+         CF := 1 <= #12582905
+         VF := high:1[(#12582905 ^ 1) & (#12582905 ^ R3)]
+         NF := high:1[R3]
+         ZF := R3 = 0
+       }")))
+   (core:label-addr (0x10))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(0x14
+  ((bap:lisp-name (llvm-armv7:Bcc))
+   (bap:insn ((Bcc -0x10 0x1 CPSR)))
+   (bap:mem ("14: fc ff ff 1a"))
+   (bap:bil-code "{
+                    if (~ZF) {
+                      jmp 0xC
+                    }
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name ZF) (ver 0)))
+        (sort (App (args ((Int 1) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff
+      ((ite
+        (and (bvule ZF #b0) (bvule #b0 ZF))
+        (label #x000000000000000c ALLVARS)
+        POST)))
+     (core:eff ((if (= ZF 0x0) (goto 0xc) ())))
+     (bap:ir-graph "0000003d:
+                    0000003e: when ~ZF goto %0000002a")
+     (bap:insn-dests ((170)))
+     (bap:insn-ops ((-16 1 CPSR)))
+     (bap:insn-asm "bne #-0x10")
+     (bap:insn-opcode Bcc)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump true)
+       (:cond true)
+       (:indirect false)
+       (:call false)
+       (:return false)
+       (:barrier false)
+       (:affect-control-flow true)
+       (:load false)
+       (:store false)))
+     (bap:bir (%0000003d))
+     (bap:bil "{
+                 if (~ZF) {
+                   jmp 0xC
+                 }
+               }")))
+   (core:label-addr (0x14))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(0x18
+  ((bap:lisp-name (llvm-armv7:BX_RET))
+   (bap:insn ((BX_RET 0xe Nil)))
+   (bap:mem ("18: 1e ff 2f e1"))
+   (bap:bil-code "{
+                    jmp LR
+                  }")
+   (bap:arch armv5)
+   (core:semantics
+    ((smt:allvars-eff
+      (((name (Reg (name LR) (ver 0)))
+        (sort (App (args ((Int 32) (Sym core:BitVec))) (name (core:BitVec)))))))
+     (smt:eff ((and (label LR ALLVARS) POST)))
+     (core:eff ((goto LR)))
+     (bap:ir-graph "00000043:
+                    00000044: goto LR")
+     (bap:insn-dests ((278)))
+     (bap:insn-ops ((14 Nil)))
+     (bap:insn-asm "bx lr")
+     (bap:insn-opcode BX_RET)
+     (bap:insn-properties
+      ((:invalid false)
+       (:jump true)
+       (:cond false)
+       (:indirect true)
+       (:call false)
+       (:return true)
+       (:barrier true)
+       (:affect-control-flow true)
+       (:load false)
+       (:store false)))
+     (bap:bir (%00000043))
+     (bap:bil "{
+                 jmp LR
+               }")))
+   (core:label-addr (0x18))
+   (core:label-unit (10))
+   (core:encoding bap:llvm-armv7)))
+(<0x116> ((core:label-unit (10)) (core:encoding bap:llvm-armv7)))
+(in-class bap:toplevel)
+(bap:main ((bap:disassembly-result10 <opaque>) (bap:last2 <opaque>)))
+(in-class core:theory)
+(core-internal:'(smt\:syntax bap\:bir bap\:bil bap\:jump-dests smt\:varset core\:syntax)
+  ((core:instance
+    ((smt:syntax
+      bap:bir
+      bap:bil
+      core:empty
+      bap:jump-dests
+      smt:varset
+      core:syntax)))))
+(core-internal:'(smt\:syntax)
+  ((core:instance ((smt:syntax core:empty) "provides smt interpretation"))))
+(core-internal:'(core\:syntax) ((core:instance ((core:empty core:syntax)))))
+(core-internal:'(bap\:bil)
+  ((core:instance ((bap:bil core:empty) "semantics in BIL"))))
+(core-internal:'(smt\:varset)
+  ((core:instance
+    ((core:empty smt:varset) "Set of all variables in expression"))))
+(core-internal:'(bap\:jump-dests)
+  ((core:instance
+    ((core:empty bap:jump-dests) "an approximation of jump destinations"))))
+(core-internal:'(bap\:bir)
+  ((core:instance
+    ((bap:bir core:empty) "Builds the graphical representation of a program."))))
+(in-class core:unit)
+(<0x6>
+  ((bap:pattern-rules <opaque>)
+   (bap:symbols-encodings (0x0))
+   (bap:symbol-table <opaque>)
+   (bap:unit-spec
+    ((declare vendor (name str))
+     (declare system (name str))
+     (declare symbol-value (addr int) (value int))
+     (declare symbol-chunk (addr int) (size int) (root int))
+     (declare subarch (name str))
+     (declare segment (addr int) (size int) (r bool) (w bool) (x bool))
+     (declare section (addr int) (size int))
+     (declare require (name str))
+     (declare named-symbol (addr int) (name str))
+     (declare named-region (addr int) (size int) (name str))
+     (declare mapped (addr int) (size int) (off int))
+     (declare llvm:virtual-segment-command (name str) (addr int) (size int))
+     (declare
+      llvm:symbol-entry
+      (name str)
+      (addr int)
+      (size int)
+      (off int)
+      (value int))
+     (declare
+      llvm:segment-command-flags
+      (name str)
+      (r bool)
+      (w bool)
+      (x bool))
+     (declare llvm:segment-command (name str) (off int) (size int))
+     (declare llvm:section-flags (name str) (r bool) (w bool) (x bool))
+     (declare llvm:section-entry (name str) (addr int) (size int) (off int))
+     (declare llvm:relocation (at int) (addr int))
+     (declare llvm:name-reference (at int) (name str))
+     (declare llvm:macho-symbol (name str) (value int))
+     (declare llvm:entry-point (addr int))
+     (declare
+      llvm:elf-virtual-program-header
+      (name str)
+      (addr int)
+      (size int))
+     (declare
+      llvm:elf-program-header-flags
+      (name str)
+      (ld bool)
+      (r bool)
+      (w bool)
+      (x bool))
+     (declare llvm:elf-program-header (name str) (off int) (size int))
+     (declare
+      llvm:coff-virtual-section-header
+      (name str)
+      (addr int)
+      (size int))
+     (declare llvm:coff-import-library (name str))
+     (declare llvm:code-entry (name str) (off int) (size int))
+     (declare llvm:base-address (addr int))
+     (declare is-little-endian (flag bool))
+     (declare is-executable (flag bool))
+     (declare format (name str))
+     (declare entry-point (addr int))
+     (declare code-start (addr int))
+     (declare code-region (addr int) (size int) (off int))
+     (declare bits (size int))
+     (declare bias (off int))
+     (declare base-address (addr int))
+     (declare arch (name str))
+     (declare abi (name str))
+     (vendor )
+     (system )
+     (symbol-value 0 0)
+     (symbol-chunk 0 36 0)
+     (subarch v5)
+     (segment 300 85 true false false)
+     (segment 284 16 true false false)
+     (segment 124 160 true false false)
+     (segment 79 42 true false false)
+     (segment 36 43 true false false)
+     (segment 0 36 true false true)
+     (section 300 85)
+     (section 284 16)
+     (section 124 160)
+     (section 79 42)
+     (section 79 0)
+     (section 36 43)
+     (section 36 0)
+     (section 0 36)
+     (named-symbol 0 fact)
+     (named-region 300 85 .shstrtab)
+     (named-region 284 16 .strtab)
+     (named-region 124 160 .symtab)
+     (named-region 79 42 .ARM.attributes)
+     (named-region 79 0 .note.GNU-stack)
+     (named-region 36 43 .comment)
+     (named-region 36 0 .bss)
+     (named-region 36 0 .data)
+     (named-region 0 36 .text)
+     (mapped 300 85 352)
+     (mapped 284 16 336)
+     (mapped 124 160 176)
+     (mapped 79 42 131)
+     (mapped 36 43 88)
+     (mapped 0 36 52)
+     (llvm:symbol-entry fact 0 36 52 0)
+     (llvm:section-flags .text true false true)
+     (llvm:section-flags .data true true false)
+     (llvm:section-flags .bss true true false)
+     (llvm:section-flags .comment true false false)
+     (llvm:section-flags .note.GNU-stack true false false)
+     (llvm:section-flags .ARM.attributes true false false)
+     (llvm:section-flags .symtab true false false)
+     (llvm:section-flags .strtab true false false)
+     (llvm:section-flags .shstrtab true false false)
+     (llvm:section-entry .text 0 36 52)
+     (llvm:section-entry .data 36 0 88)
+     (llvm:section-entry .bss 36 0 88)
+     (llvm:section-entry .comment 36 43 88)
+     (llvm:section-entry .note.GNU-stack 79 0 131)
+     (llvm:section-entry .ARM.attributes 79 42 131)
+     (llvm:section-entry .symtab 124 160 176)
+     (llvm:section-entry .strtab 284 16 336)
+     (llvm:section-entry .shstrtab 300 85 352)
+     (llvm:entry-point 0)
+     (llvm:code-entry .text 52 36)
+     (llvm:code-entry fact 52 36)
+     (llvm:base-address 0)
+     (is-little-endian true)
+     (is-executable false)
+     (format elf)
+     (entry-point 0)
+     (code-start 0)
+     (code-region 0 36 52)
+     (bits 32)
+     (bias 0)
+     (base-address 0)
+     (arch arm)
+     (abi unknown)))
+   (bap:unit-arch armv5)
+   (core:unit-source
+    ((bap:primus-lisp-program <opaque>)
+     (core:source-language bap:primus-lisp)))
+   (core:unit-target bap:armv5+le)))
+(file:example.o
+  ((bap:pattern-rules <opaque>)
+   (bap:symbols-encodings (0x0))
+   (bap:disassembly ((:number-of-basic-blocks 4) (:number-of-subroutines 1)))
+   (bap:symbol-table <opaque>)
+   (bap:unit-memory
+    (((lower 0) (upper 0x23) (value (segment ".text 0 36")))
+     ((lower 0) (upper 0x23) (value (symbol fact)))
+     ((lower 0) (upper 0x23) (value (symbol-info "fact 0 36")))
+     ((lower 0x24) (upper 0x4E) (value (segment ".comment 0x24 43")))
+     ((lower 0x24) (upper 0x4E) (value (section .comment)))
+     ((lower 0) (upper 0x23) (value (section .text)))
+     ((lower 0) (upper 0x23) (value (code-region ())))
+     ((lower 0x4F) (upper 0x78) (value (segment ".ARM.attributes 0x4F 42")))
+     ((lower 0x7C) (upper 0x11B) (value (segment ".symtab 0x7C 160")))
+     ((lower 0x7C) (upper 0x11B) (value (section .symtab)))
+     ((lower 0x11C) (upper 0x12B) (value (segment ".strtab 0x11C 16")))
+     ((lower 0x12C) (upper 0x180) (value (segment ".shstrtab 0x12C 85")))
+     ((lower 0x12C) (upper 0x180) (value (section .shstrtab)))
+     ((lower 0x11C) (upper 0x12B) (value (section .strtab)))
+     ((lower 0x4F) (upper 0x78) (value (section .ARM.attributes)))))
+   (bap:unit-spec
+    ((declare vendor (name str))
+     (declare system (name str))
+     (declare symbol-value (addr int) (value int))
+     (declare symbol-chunk (addr int) (size int) (root int))
+     (declare subarch (name str))
+     (declare segment (addr int) (size int) (r bool) (w bool) (x bool))
+     (declare section (addr int) (size int))
+     (declare require (name str))
+     (declare named-symbol (addr int) (name str))
+     (declare named-region (addr int) (size int) (name str))
+     (declare mapped (addr int) (size int) (off int))
+     (declare llvm:virtual-segment-command (name str) (addr int) (size int))
+     (declare
+      llvm:symbol-entry
+      (name str)
+      (addr int)
+      (size int)
+      (off int)
+      (value int))
+     (declare
+      llvm:segment-command-flags
+      (name str)
+      (r bool)
+      (w bool)
+      (x bool))
+     (declare llvm:segment-command (name str) (off int) (size int))
+     (declare llvm:section-flags (name str) (r bool) (w bool) (x bool))
+     (declare llvm:section-entry (name str) (addr int) (size int) (off int))
+     (declare llvm:relocation (at int) (addr int))
+     (declare llvm:name-reference (at int) (name str))
+     (declare llvm:macho-symbol (name str) (value int))
+     (declare llvm:entry-point (addr int))
+     (declare
+      llvm:elf-virtual-program-header
+      (name str)
+      (addr int)
+      (size int))
+     (declare
+      llvm:elf-program-header-flags
+      (name str)
+      (ld bool)
+      (r bool)
+      (w bool)
+      (x bool))
+     (declare llvm:elf-program-header (name str) (off int) (size int))
+     (declare
+      llvm:coff-virtual-section-header
+      (name str)
+      (addr int)
+      (size int))
+     (declare llvm:coff-import-library (name str))
+     (declare llvm:code-entry (name str) (off int) (size int))
+     (declare llvm:base-address (addr int))
+     (declare is-little-endian (flag bool))
+     (declare is-executable (flag bool))
+     (declare format (name str))
+     (declare entry-point (addr int))
+     (declare code-start (addr int))
+     (declare code-region (addr int) (size int) (off int))
+     (declare bits (size int))
+     (declare bias (off int))
+     (declare base-address (addr int))
+     (declare arch (name str))
+     (declare abi (name str))
+     (vendor )
+     (system )
+     (symbol-value 0 0)
+     (symbol-chunk 0 36 0)
+     (subarch v5)
+     (segment 300 85 true false false)
+     (segment 284 16 true false false)
+     (segment 124 160 true false false)
+     (segment 79 42 true false false)
+     (segment 36 43 true false false)
+     (segment 0 36 true false true)
+     (section 300 85)
+     (section 284 16)
+     (section 124 160)
+     (section 79 42)
+     (section 79 0)
+     (section 36 43)
+     (section 36 0)
+     (section 0 36)
+     (named-symbol 0 fact)
+     (named-region 300 85 .shstrtab)
+     (named-region 284 16 .strtab)
+     (named-region 124 160 .symtab)
+     (named-region 79 42 .ARM.attributes)
+     (named-region 79 0 .note.GNU-stack)
+     (named-region 36 43 .comment)
+     (named-region 36 0 .bss)
+     (named-region 36 0 .data)
+     (named-region 0 36 .text)
+     (mapped 300 85 352)
+     (mapped 284 16 336)
+     (mapped 124 160 176)
+     (mapped 79 42 131)
+     (mapped 36 43 88)
+     (mapped 0 36 52)
+     (llvm:symbol-entry fact 0 36 52 0)
+     (llvm:section-flags .text true false true)
+     (llvm:section-flags .data true true false)
+     (llvm:section-flags .bss true true false)
+     (llvm:section-flags .comment true false false)
+     (llvm:section-flags .note.GNU-stack true false false)
+     (llvm:section-flags .ARM.attributes true false false)
+     (llvm:section-flags .symtab true false false)
+     (llvm:section-flags .strtab true false false)
+     (llvm:section-flags .shstrtab true false false)
+     (llvm:section-entry .text 0 36 52)
+     (llvm:section-entry .data 36 0 88)
+     (llvm:section-entry .bss 36 0 88)
+     (llvm:section-entry .comment 36 43 88)
+     (llvm:section-entry .note.GNU-stack 79 0 131)
+     (llvm:section-entry .ARM.attributes 79 42 131)
+     (llvm:section-entry .symtab 124 160 176)
+     (llvm:section-entry .strtab 284 16 336)
+     (llvm:section-entry .shstrtab 300 85 352)
+     (llvm:entry-point 0)
+     (llvm:code-entry .text 52 36)
+     (llvm:code-entry fact 52 36)
+     (llvm:base-address 0)
+     (is-little-endian true)
+     (is-executable false)
+     (format elf)
+     (entry-point 0)
+     (code-start 0)
+     (code-region 0 36 52)
+     (bits 32)
+     (bias 0)
+     (base-address 0)
+     (arch arm)
+     (abi unknown)))
+   (bap:unit-arch armv5)
+   (core:unit-source
+    ((bap:typed-program (<opaque>))
+     (bap:primus-lisp-program <opaque>)
+     (core:source-language bap:primus-lisp)))
+   (core:unit-target bap:armv5+le)
+   (core:unit-bias (0x0))
+   (core:unit-path (example.o))))
