@@ -1,0 +1,230 @@
+        (*
+          let mk_cast name s x =
+            x >>|> fun s' x -> match x with
+            | None -> empty s
+            | Some x ->
+              if Theory.Value.Sort.same s s'
+              then pure s x
+              else pure s@@app name [
+                  atom@@sprintf "%d" (Theory.Bitv.size s);
+                  x
+                ]
+        
+          let high s = mk_cast "high" s
+          let low s = mk_cast "low" s
+          let signed s = mk_cast "signed" s
+          let unsigned s = mk_cast "unsigned" s
+        
+          let extract s lo hi x =
+            lo >>-> fun _ lo ->
+            hi >>-> fun _ hi ->
+            x >>|> fun _ x ->
+            match lo,hi,x with
+            | Some lo, Some hi, Some x ->
+              pure s@@app "extract" [lo; hi; x]
+            | _ -> empty s
+        
+          let loadw s dir mem ptr =
+            dir >>-> fun _ dir ->
+            mem >>-> fun _ mem ->
+            ptr >>|> fun _ ptr ->
+            match dir,mem,ptr with
+            | Some dir, Some mem, Some ptr ->
+              pure s@@app "loadw" [
+                atom@@sprintf "%d" (Theory.Bitv.size s);
+                dir;
+                mem;
+                ptr
+              ]
+            | _ -> empty s
+        
+          let storew dir mem ptr exp =
+            dir >>-> fun _ dir ->
+            mem >>-> fun s mem ->
+            ptr >>-> fun _ ptr ->
+            exp >>|> fun _ exp ->
+            match Option.all [dir; mem; ptr; exp] with
+            | Some args -> pure s@@app "storew" args
+            | _ -> empty s
+        
+          let mk_shift name x m =
+            x >>->? fun s x ->
+            m >>|> fun _ -> function
+            | None -> empty s
+            | Some m -> pure s@@app name [x; m]
+        
+          let arshift x = mk_shift "arshift" x
+          let rshift x = mk_shift "rshift" x
+          let lshift x = mk_shift "lshift" x
+          let eq x = monoid_s Theory.Bool.t "=" x
+          let neq x = monoid_s Theory.Bool.t "/=" x
+          let slt x = monoid_s Theory.Bool.t "s<" x
+          let ult x = monoid_s Theory.Bool.t "<" x
+          let sgt x = monoid_s Theory.Bool.t "s>" x
+          let ugt x = monoid_s Theory.Bool.t ">" x
+          let sge x = monoid_s Theory.Bool.t "s>=" x
+          let uge x = monoid_s Theory.Bool.t ">=" x
+        
+          let asort s =
+            atom@@Format.asprintf "%a" Theory.Value.Sort.pp (Theory.Value.Sort.forget s)
+        
+        
+          let wellknown = Theory.IEEE754.[
+              binary16,  ":b16";
+              binary32,  ":b32";
+              binary64,  ":b64";
+              binary80,  ":b80";
+              binary128, ":b128";
+              decimal32, ":d32";
+              decimal64, ":d64";
+              decimal128, ":d128";
+            ]
+        
+          let format s =
+            let s = Theory.Value.Sort.forget s in
+            match Theory.Float.(refine s) with
+            | None -> asort s
+            | Some s ->
+              List.find_map wellknown ~f:(fun (par,name) ->
+                  let s' = Theory.IEEE754.Sort.define par in
+                  if Theory.Value.Sort.same s s'
+                  then Some (atom name)
+                  else None) |> function
+              | Some s -> s
+              | None -> asort s
+        
+        
+        
+          let float s x =
+            x >>|> fun _ x -> match x with
+            | None -> empty s
+            | Some x -> pure s@@app "float" [format s; x]
+        
+          let fbits x =
+            x >>|> fun s x ->
+            let s = Theory.Float.bits s in
+            match x with
+            | None -> empty s
+            | Some x -> pure s@@app "fbits" [x]
+        
+          let is_finite x = unary_s Theory.Bool.t "is-finite" x
+          let is_nan x = unary_s Theory.Bool.t "is-nan" x
+          let is_inf x = unary_s Theory.Bool.t "is-inf" x
+          let is_fzero x = unary_s Theory.Bool.t "is-fzero" x
+          let is_fpos x = unary_s Theory.Bool.t "is-fpos" x
+          let is_fneg x = unary_s Theory.Bool.t "is-fneg" x
+        
+          let rmode s = ret@@pure Theory.Rmode.t @@ atom s
+          let rne = rmode ":rne"
+          let rna = rmode ":rna"
+          let rtp = rmode ":rtp"
+          let rtn = rmode ":rtn"
+          let rtz = rmode ":rtz"
+          let requal = eq
+        
+          let mk_fcast name s m x =
+            m >>-> fun _ m ->
+            x >>|> fun _ x ->
+            match m,x with
+            | Some m, Some x -> pure s@@app name [m;x]
+            | _ -> empty s
+        
+          let cast_float s = mk_fcast "cast-float" s
+          let cast_sfloat s = mk_fcast "cast-sfloat" s
+          let cast_int s = mk_fcast "cast-int" s
+          let cast_sint s = mk_fcast "cast-sint" s
+        
+          let fneg x = unary "fneg" x
+          let fabs x = unary "fabs" x
+        
+          let monoid_f name m x y =
+            x >>->? fun s x ->
+            y >>->? fun _ y ->
+            m >>|> fun _ m ->
+            match m with
+            | None -> empty s
+            | Some m -> pure s@@app name [m; x; y]
+        
+          let unary_f name m x =
+            x >>->? fun s x ->
+            m >>|> fun _ m ->
+            match m with
+            | None -> empty s
+            | Some m -> pure s@@app name [m; x]
+        
+          let ternary_f name m x y z =
+            x >>->? fun s x ->
+            y >>->? fun _ y ->
+            z >>->? fun _ z ->
+            m >>|> fun _ m ->
+            match m with
+            | None -> empty s
+            | Some m -> pure s@@app name [m; x; y; z]
+        
+          let binary_fi name m f x =
+            f >>->? fun s f ->
+            m >>-> fun _ m ->
+            x >>|> fun _ x ->
+            match m,x with
+            | Some m, Some x -> pure s@@app name [m; f; x]
+            | _ -> empty s
+        
+        
+          let fadd m = monoid_f "+." m
+          let fsub m = monoid_f "-." m
+          let fmul m = monoid_f "*." m
+          let fdiv m = monoid_f "/." m
+          let fmodulo m = monoid_f "mod." m
+          let fsqrt m = unary_f "fsqrt" m
+          let fround m = unary_f "fround" m
+          let fmad m = ternary_f "fmad" m
+          let fsucc x = unary "fsucc" x
+          let fpred x = unary "fpred" x
+          let forder x = monoid_s Theory.Bool.t "forder" x
+        
+          let fconvert s m x =
+            m >>-> fun _ m ->
+            x >>|> fun _ x ->
+            match m,x with
+            | Some m, Some x -> pure s@@app "fconvert" [
+                format s; m; x
+              ]
+            | _ -> empty s
+        
+          let pow m = monoid_f "pow" m
+          let hypot m = monoid_f "hypot" m
+        
+          let rsqrt m = unary_f "rsqrt" m
+          let exp m = unary_f "exp" m
+          let expm1 m = unary_f "expm1" m
+          let exp2 m = unary_f "exp2" m
+          let exp2m1 m = unary_f "exp2m1" m
+          let exp10 m = unary_f "exp10" m
+          let exp10m1 m = unary_f "exp10m1" m
+          let log m = unary_f "log" m
+          let log2 m = unary_f "log2" m
+          let log10 m = unary_f "log10" m
+          let logp1 m = unary_f "logp1" m
+          let log2p1 m = unary_f "log2p1" m
+          let log10p1 m = unary_f "log10p1" m
+          let sin m = unary_f "sin" m
+          let cos m = unary_f "cos" m
+          let tan m = unary_f "tan" m
+          let sinpi m = unary_f "sinpi" m
+          let cospi m = unary_f "cospi" m
+          let atanpi m = unary_f "atanpi" m
+          let atan2pi m = monoid_f "atan2pi" m
+          let asin m = unary_f "asin" m
+          let acos m = unary_f "acos" m
+          let atan m = unary_f "atan" m
+          let atan2 m = monoid_f "atan2" m
+          let sinh m = unary_f "sinh" m
+          let cosh m = unary_f "cosh" m
+          let tanh m = unary_f "tanh" m
+          let asinh m = unary_f "asinh" m
+          let acosh m = unary_f "acosh" m
+          let atanh m = unary_f "atanh" m
+        
+          let compound m = binary_fi "compound" m
+          let rootn m = binary_fi "rootn" m
+          let pown m = binary_fi "pown" m *)
