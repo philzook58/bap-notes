@@ -1,0 +1,57 @@
+// http://binaryanalysisplatform.github.io/bap/api/master/bap/Bap/Std/Bil/index.html#type-exp
+
+.type cast <: symbol
+//.type var <: symbol // need more info? Size? id?
+.type binop <: symbol
+.type unop <: symbol
+
+.type word = Word {i : unsigned, width : unsigned}
+.type var = Var {n : symbol, t : typ}
+.type endian = LittleEndian {} | BigEndian {}
+.type exp =
+    Load { mem : exp, addr : exp , endian : endian, size: size}
+  | Store { mem : exp, addr : exp, v : exp, e : endian, size : size }
+  | BinOp { op : binop , a : exp, b : exp}
+  | UnOp { op: unop, a : exp}
+  | EVar {v : var}
+  | Int {w : word}
+  | Cast {ct : symbol, width : unsigned, e : exp} // TODO
+  | Let {v : var, e : exp, b : exp}
+  | Unknown {s : symbol, t : typ}
+  | Ite {cond : exp, then : exp, else : exp}
+  | Extract {lo : unsigned, hi : unsigned, e : exp}
+  | Concat {a : exp , b : exp}
+
+.type typ =
+    Imm {width : unsigned}
+  | Mem {a : addr_size, s : size}
+  | Unk {}
+
+.type stmts = [hd : stmt, tl : stmts]
+.type stmt =
+    Move { v: var, e : exp}
+  | Jmp {e : exp}
+  | Special {s : symbol}
+  | While {e : exp, s : stmts}
+  | If {c : exp, t : stmts, e : stmts}
+  | CpuExn {n : unsigned}
+
+
+
+// http://binaryanalysisplatform.github.io/bap/api/master/bap/Bap/Std/Size/index.html#type-all
+// 8 - 256
+.type size <: unsigned
+.type addr_size <: unsigned 
+
+// helpers
+#define ADD(x,y) $BinOp("Add", x, y)
+
+
+
+
+#define BINOP(op, a, b, c) (op = "Add", c = a + b; op = "Sub", c = a - b ; ... )
+
+.decl insn(addr : unsigned, asm : symbol, sema : stmts)
+.input insn(rfc4180="true")
+
+.output insn(IO=stdout)

@@ -1,0 +1,1 @@
+0xa5,"movq %rsp,%rbp","[$Special(foo)  , [$Move(""R0"", $Int(3)) , nil]]"
