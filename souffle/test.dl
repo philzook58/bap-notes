@@ -1,0 +1,63 @@
+#include "bap.dl"
+
+#define vX $Var("x", $Imm(64))
+#define eX $EVar(vX)
+insn(0, "test",
+    [$Move(vX, ADD(eX,ADD(eX,eX))),
+    nil
+    ]
+).
+
+
+.decl flatten1(addr : unsigned, ctx : stmts, s : stmt)
+
+flatten1(a, ctx, hd) :- insn( a  , _, [hd,ctx]).
+flatten1(a, ctx, hd) :- flatten1( a  , [hd,ctx], _ ).
+
+.type expr_ctx = [e : exp , tl : expr_ctx]
+
+.decl flatten2(addr : unsigned, stmt_ctx : stmts, ectx : expr_ctx, e : exp)
+
+flatten2(a, ctx, nil, e) :- flatten1(a, ctx, $Move(_, e)).
+flatten2(a, ctx, [$BinOp(op,$Hole(),y), ectx],  x),
+flatten2(a, ctx, [$BinOp(op,x,$Hole()), ectx],  y) :- flatten2(a, ctx, ectx, $BinOp(op,x,y)).
+
+.output flatten2(IO=stdout)
+
+/*
+So what, I want to pattern match over this?
+
+I want to inline?
+
+I want to SSA?
+Var -> Var(name, imm, ctx)
+
+I could do the inlining inside a block. It's a little insane.
+
+Inline in ocaml?
+
+Could take in the inline expressions
+
+
+*/
+
+.decl all_vars_insn(a : unsigned, v : var)
+all_vars_insn(a, v) :- flatten2(a,_,_,_,$EVar(v)).
+peval(a, stmt, $EVar(v), $EVar(v)) :- all_vars_insn(a,v), insn(a, _, stmt).
+peval(a, stmt, v, v) :- peval(), peval(a, [prev,stmt], e, ).
+peval(a, stmt, v, v) :- peval(), peval(a, [prev,stmt], v).
+ :- peval(  [$Move(v, e), ] )
+
+env(a, stmt, v, $EVar(v)) :- all_vars_insn(a,v), insn(a, _, stmt).
+
+peval(a,stmt $EVar(v), e) :- flatten2(a, stmt, _, $EVar(v)), env(a, stmt, v, e).
+peval(a,stmt $EVar(v), e) :- flatten2(a, stmt, _, $BinOp(op,x,y)), peval(a,stmt, x, x1), peval(a,stmt, y, y1).
+
+
+peval(a, v, e) :- peval(a, nil, $EVar(v), e).
+
+
+subexpr(as(t, number), t).
+
+
+

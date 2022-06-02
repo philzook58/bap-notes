@@ -21,6 +21,8 @@
   | Ite {cond : exp, then : exp, else : exp}
   | Extract {lo : unsigned, hi : unsigned, e : exp}
   | Concat {a : exp , b : exp}
+  // Useful for expressions with context
+  | Hole {}
 
 .type typ =
     Imm {width : unsigned}
@@ -49,9 +51,10 @@
 
 
 
+
 #define BINOP(op, a, b, c) (op = "Add", c = a + b; op = "Sub", c = a - b ; ... )
 
 .decl insn(addr : unsigned, asm : symbol, sema : stmts)
-.input insn(rfc4180="true")
+// .input insn(rfc4180="true")
 
 .output insn(IO=stdout)
