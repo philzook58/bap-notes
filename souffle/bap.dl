@@ -54,7 +54,7 @@
 
 #define BINOP(op, a, b, c) (op = "Add", c = a + b; op = "Sub", c = a - b ; ... )
 
-.decl insn(addr : unsigned, asm : symbol, sema : stmts)
-// .input insn(rfc4180="true")
+.decl insn(addr : unsigned, end_addr : unsigned, asm : symbol, sema : stmts)
+//.input insn(rfc4180="true")
 
 .output insn(IO=stdout)

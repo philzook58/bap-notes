@@ -2,27 +2,64 @@
 
 #define vX $Var("x", $Imm(64))
 #define eX $EVar(vX)
-insn(0, "test",
+insn(0, 1, "test",
     [$Move(vX, ADD(eX,ADD(eX,eX))),
     nil
     ]
 ).
 
-
+// Flatten1 moves the list of bil stmts into souffle relation, keyed by the remaining tail of the list.
 .decl flatten1(addr : unsigned, ctx : stmts, s : stmt)
 
-flatten1(a, ctx, hd) :- insn( a  , _, [hd,ctx]).
+flatten1(a, ctx, hd) :- insn( a , _, _, [hd,ctx]).
 flatten1(a, ctx, hd) :- flatten1( a  , [hd,ctx], _ ).
 
 .type expr_ctx = [e : exp , tl : expr_ctx]
 
-.decl flatten2(addr : unsigned, stmt_ctx : stmts, ectx : expr_ctx, e : exp)
+// flatten2 deconstructs expressions within a single bil statement
+// is ectx really necessary? Who cares about the context?
+// ectx : expr_ctx, 
+.decl allexpr(addr : unsigned, stmt_ctx : stmts, e : exp)
 
-flatten2(a, ctx, nil, e) :- flatten1(a, ctx, $Move(_, e)).
-flatten2(a, ctx, [$BinOp(op,$Hole(),y), ectx],  x),
-flatten2(a, ctx, [$BinOp(op,x,$Hole()), ectx],  y) :- flatten2(a, ctx, ectx, $BinOp(op,x,y)).
+allexpr(a, ctx, e) :- flatten1(a, ctx, $Move(_, e)).
+allexpr(a, ctx, e) :- flatten1(a, ctx, $Jmp(e)).
+failure("While not supported in flatten1") :- flatten1(_, _ctx, $While(_,_)).
+failure("If stmt not supported in flatten1") :- flatten1(_, _ctx, $If(_,_,_)).
+failure("Cpuexn stmt not supported in flatten1") :- flatten1(_a, _ctx, $CpuExn(_)).
 
-.output flatten2(IO=stdout)
+//allexpr(a, ctx, [$BinOp(op,$Hole(),y), ectx],  x),
+//allexpr(a, ctx, [$BinOp(op,x,$Hole()), ectx],  y) :- allexpr(a, ctx, ectx, $BinOp(op,x,y)).
+
+allexpr(a, ctx, x) :- allexpr(a, ctx, $UnOp(_op,x))
+                    ; allexpr(a, ctx, $Cast(_,_,x))
+                    ; allexpr(a, ctx, $Extract(_,_,x))
+                    .
+allexpr(a, ctx, x),
+allexpr(a, ctx, y) :- allexpr(a, ctx, $BinOp(_op,x,y))
+                    ; allexpr(a, ctx, $Load(x,y,_,_))
+                    ; allexpr(a, ctx, $Concat(x,y))
+                    .
+allexpr(a, ctx, x), allexpr(a, ctx, y), allexpr(a, ctx, z)
+     :- allexpr(a, ctx, $Ite(x,y,z))
+     ;  allexpr(a, ctx, $Store(x,y,z, _, _)).
+
+failure("Let in expression") :- allexpr(a, ctx, $Let(_,_x,_y)). // hooo boy
+
+.decl failure(msg : symbol)
+.output failure(IO=stdout)
+
+
+.output allexpr(IO=stdout)
+
+/*
+
+pat1(x,a, asm) :- flatten1(a, _ , asm , _, $Move( $Var(x, 64), $Int($Word(7,64) ))).
+
+Build bir dumper.
+Run SSA and flatten pass over it.
+
+
+
 
 /*
 So what, I want to pattern match over this?
@@ -39,10 +76,8 @@ Inline in ocaml?
 Could take in the inline expressions
 
 
-*/
-
 .decl all_vars_insn(a : unsigned, v : var)
-all_vars_insn(a, v) :- flatten2(a,_,_,_,$EVar(v)).
+all_vars_insn(a, v) :- allexpr(a,_,_,_,$EVar(v)).
 peval(a, stmt, $EVar(v), $EVar(v)) :- all_vars_insn(a,v), insn(a, _, stmt).
 peval(a, stmt, v, v) :- peval(), peval(a, [prev,stmt], e, ).
 peval(a, stmt, v, v) :- peval(), peval(a, [prev,stmt], v).
@@ -50,14 +85,18 @@ peval(a, stmt, v, v) :- peval(), peval(a, [prev,stmt], v).
 
 env(a, stmt, v, $EVar(v)) :- all_vars_insn(a,v), insn(a, _, stmt).
 
-peval(a,stmt $EVar(v), e) :- flatten2(a, stmt, _, $EVar(v)), env(a, stmt, v, e).
-peval(a,stmt $EVar(v), e) :- flatten2(a, stmt, _, $BinOp(op,x,y)), peval(a,stmt, x, x1), peval(a,stmt, y, y1).
+peval(a,stmt $EVar(v), e) :- allexpr(a, stmt, _, $EVar(v)), env(a, stmt, v, e).
+peval(a,stmt $EVar(v), e) :- allexpr(a, stmt, _, $BinOp(op,x,y)), peval(a,stmt, x, x1), peval(a,stmt, y, y1).
 
 
 peval(a, v, e) :- peval(a, nil, $EVar(v), e).
 
 
 subexpr(as(t, number), t).
+
+*/
+
+
 
 
 

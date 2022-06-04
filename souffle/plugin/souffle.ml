@@ -57,10 +57,11 @@ let print_disasm pp_insn patterns ppf proj =
   (* https://github.com/BinaryAnalysisPlatform/bap/blob/253afc171bbfd0fe1b34f6442795dbf4b1798348/lib/bap_types/bap_bil_adt.ml *)
 let pp_bil fmt _ _ ppf (mem,insn) =
   let pp_bil ppf = Bil.Io.print ~fmt ppf in
-  let addr = Memory.min_addr mem in
+  let minaddr = Memory.min_addr mem in
+  let maxaddr = Memory.max_addr mem in
   (* fprintf str_formatter "%a" pp_bil (Insn.bil insn);
   let adt = flush_str_formatter () |> add_dollar in *)
-  fprintf ppf "0x%a,\"%s\",%a@\n" pp_addr addr (Insn.asm insn)
+  fprintf ppf "0x%a,0x%a,\"%s\",%a@\n" pp_addr minaddr pp_addr maxaddr (Insn.asm insn)
     pp_bil (Insn.bil insn)
 
 
