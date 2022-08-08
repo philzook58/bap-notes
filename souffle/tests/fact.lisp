@@ -1,0 +1,10 @@
+
+(defun fact (n)
+    (declare (external "myfact"))
+    (let ((acc 1))
+             (while (not (= n 0))
+              (set acc (* acc n))
+              (decr n)
+               )
+            acc)
+     )

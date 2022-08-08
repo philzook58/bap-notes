@@ -56,5 +56,4 @@
 
 .decl insn(addr : unsigned, end_addr : unsigned, asm : symbol, sema : stmts)
 //.input insn(rfc4180="true")
-
-.output insn(IO=stdout)
+//.output insn(IO=stdout)

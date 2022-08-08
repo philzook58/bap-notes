@@ -1,0 +1,89 @@
+#include "bap.dl"
+
+// .type tid <: symbol 
+.decl exps(e : exp)
+
+exps(mem), exps(addr) :- exps($Load(mem, addr, _, _)).
+exps(mem), exps(addr), exps(v) :- exps($Store(mem, addr, v,  _, _)).
+exps(a), exps(b) :- exps($BinOp(_, a, b)).
+exps(a) :- exps($UnOp(_, a)).
+exps(e) :- exps($Cast(_, _, e)).
+exps(e), exps(x) :- exps($Let(_, x, e)).
+exps(c), exps(t), exps(e) :- exps($Ite(c, t, e)).
+exps(e) :- exps($Extract(_, _, e)).
+exps(e), exps(x) :- exps($Concat(x, e)).
+
+
+
+#define PPVar(x) CAT3(" v", to_string(as(x,number)), " ")
+#define CAT3(x,y,z) cat(cat(x,y),z)
+#define CAT4(x,y,z,w) cat(x,CAT3(y,z,w))
+#define CAT5(_5,_4,_3,_2,_1) cat(_5,CAT4(_4,_3,_2,_1))
+#define CAT6(_6,_5,_4,_3,_2,_1) cat(_6,CAT5(_5,_4,_3,_2,_1))
+
+.type eid <: number
+#define EID(e) as(e, eid)
+// Labelling expressions by their identifier number
+.decl eids(n : eid, e : exp)
+eids(EID(e), e) :- exps(e).
+
+
+
+
+.type match_ =
+   Pat0 { n : symbol}
+ | Pat3 {n : symbol, x : eid, y : eid, z : eid}
+
+.type mid <: number
+#define MID(x) as(x, mid)
+.decl matches(id : mid, p : match_)
+.decl defs(p : mid, e : eid)
+.decl uses(p : mid, e : eid)
+
+#define CONSTRAINT(x) CAT3("constraint ", x, ";")
+// #define CONSTRAINT(name, ...)  CAT("constraint ", name, ARGS(__VA_ARGS__) , ");" )
+#define PPCON2(name, x1, x2) CONSTRAINT(CAT6(name, "(", to_string(x1), ",", to_string(x2), ")"))
+#define PPDEF(p,e) PPCON2("def", p, e)
+#define PPUSE(p,e) PPCON2("use", p, e)
+
+matches(MID(m), m) :- exps(z), z = ADD(x,y), m = $Pat3("add",EID(z),EID(x),EID(y)).
+defs(id,z), uses(id,x), uses(id,y) :- matches(id, p), p = $Pat3("add",z,x,y).
+
+
+.decl pprint(p : mid, out : symbol)
+pprint(id, out) :- matches(id, p), p = $Pat3("add", x,y,z), out = CAT5("add", PPVar(x), ",", PPVar(y), PPVar(z)).
+
+
+#define V32(x) $Var(x, $Imm(32))
+#define EV32(x) $EVar(V32(x))
+
+exps(ADD(EV32("x"), ADD(EV32("z"), EV32("q")))).
+
+.output matches(IO=stdout)
+.output eids(IO=stdout)
+.output pprint(IO=stdout)
+//.output defs(IO=stdout)
+//.output uses(IO=stdout)
+
+.decl mzn_constraints(s : symbol)
+mzn_constraints(PPDEF(p,e)) :- defs(p,e).
+mzn_constraints(PPUSE(p,e)) :- uses(p,e).
+.output mzn_constraints(IO=stdout)
+
+/*
+.type exp =
+    Load { mem : exp, addr : exp , endian : endian, size: size}
+  | Store { mem : exp, addr : exp, v : exp, e : endian, size : size }
+  | BinOp { op : binop , a : exp, b : exp}
+  | UnOp { op: unop, a : exp}
+  | EVar {v : var}
+  | Int {w : word}
+  | Cast {ct : symbol, width : unsigned, e : exp} // TODO
+  | Let {v : var, e : exp, b : exp}
+  | Unknown {s : symbol, t : typ}
+  | Ite {cond : exp, then : exp, else : exp}
+  | Extract {lo : unsigned, hi : unsigned, e : exp}
+  | Concat {a : exp , b : exp}
+  // Useful for expressions with context
+  | Hole {}
+*/

@@ -1,0 +1,56 @@
+// https://github.com/BinaryAnalysisPlatform/bap/blob/master/lib/bap_types/bap_ir.ml
+#include "bap.dl"
+.type tid <: symbol
+
+.type def =  [t : tid, v : var, e : exp]
+.type defs = [d : def, ds : defs]
+
+.type optcnd = [e : exp]
+
+.type dst =  Resolved {t : tid}
+           | Indirect {vec : exp, len : number}
+
+.type optdst = [d : optdst]
+
+.type jmp = [t : tid, e : optcnd, dst : optdst, alt : optdst]
+.type jmp_list = [d : def, ds : jmp_list]
+
+/*
+  type t = {
+    var : Theory.Var.Top.t;
+    map : Rhs.t Tid.Map.t;
+  }
+*/
+.type phi =  [t : tid, v : var, e : exp]
+.type phi_list = [d : phi, ds : phi_list]
+
+/*
+type blk = {
+  phis : phi term array;
+  defs : def term array;
+  jmps : jmp term array;
+} 
+*/
+.type blk = [
+    tid : tid,
+    phis : phi_list,
+    defs : def_list,
+    jmps : jmp_list
+]
+
+//.type blk_list = [b : blk, bs : blk_list]
+
+.decl blks0(blk : blk)
+.decl blks(tid : tid, blk : blk)
+blks(tid, blk) :- blks0(blk), blk = [tid, _, _ ,_].
+
+.decl jmps()
+
+
+.decl subterm(child : tid, parent : tid)
+subterm() :- blks(tid, [tid, ])
+
+
+//.decl subs(tid : tid, blk : blk_list)
+
+//blk(tid, blk), sub(blks) :- sub([blk, blks]).

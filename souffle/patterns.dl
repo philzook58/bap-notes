@@ -1,0 +1,39 @@
+#include "bap.dl"
+
+.type tid <: symbol
+
+.decl def(tid : tid, v : var, e : exp)
+
+// .input def(IO=file, filename="tests/fact.facts", rfc4180="true")
+#define V32(x) $Var(x, $Imm(32))
+#define EV32(x) $EVar(V32(x))
+
+def("tid2", V32("x"), ADD(EV32("z"), EV32("q"))).
+
+.decl covers(id : number, tid : tid)
+
+.decl add_pat(id : number, tid : tid, v : var, x : var, y : var)
+add_pat(autoinc(), tid, v, x, u) :- def(tid , v,  ADD($EVar(x),$EVar(u))).
+covers(tid) :- add_pat( id, tid, x, y, z).
+//produce(x) :-
+//uses(y,z) :-
+// mzninsn(  , "add", ) :-
+.output add_pat(IO=stdout)
+//add_pat(tid, v, x, u) :- def( tid , v,  $Sub(x,u)  ).
+//load_pat(tid, v, x, u) :- def().
+
+
+/*
+load_pat -> template
+
+insn( , op , ) :- def(), def(). 
+
+
+
+.type instruction <: symbol
+.type operands = [ hd : oeprand, tl : operands]
+.decl insn(lhs : operands  , i : instruction, o : operands)
+
+
+
+*/

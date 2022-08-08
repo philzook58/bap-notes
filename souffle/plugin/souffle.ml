@@ -64,11 +64,33 @@ let pp_bil fmt _ _ ppf (mem,insn) =
   fprintf ppf "0x%a,0x%a,\"%s\",%a@\n" pp_addr minaddr pp_addr maxaddr (Insn.asm insn)
     pp_bil (Insn.bil insn)
 
+    (* 
+let extract_program patterns proj =
+  Project.program proj |>
+  Term.filter sub_t ~f:(fun sub ->
+      matches patterns proj (Term.get_attr sub address))
+      *)
+
+  let print_bir patterns sema ppf proj =
+    Project.program proj |>
+    Term.enum sub_t |>
+    Seq.iter ~f:(fun  sub -> 
+      Ppbir.pp_sub ppf sub
+    )
+
+    (* let pp = match sema with
+      | None -> Program.pp
+      | Some cs -> Program.pp_slots cs in
+    Text_tags.with_mode ppf "attr" ~f:(fun () ->
+        pp ppf (extract_program patterns proj)) *)
+
+
+
 
 let pp_souffle ppf proj = ()
 (*https://github.com/BinaryAnalysisPlatform/bap/blob/master/plugins/print/print_main.ml*)
 let () = Extension.declare @@ fun _ctxt ->
-  Ppsouffle.add_souffle_writers ();
+  Ppbil.add_souffle_writers ();
   (* let pp_mlcfg =  Data.Write.create ~pp:(pp_souffle) () in
   Project.add_writer  ~ver:"1" "souffle"
   ~desc:"dumps a souffle file" pp_mlcfg; *)
@@ -78,4 +100,7 @@ let () = Extension.declare @@ fun _ctxt ->
     Data.Write.create ~pp:(print_disasm (pp_bil "souffle") patterns) () in
     Project.add_writer ~ver "souffle"
     ~desc:"print BIL instructions" pp_disasm_bil;
+    let pp_bir = Data.Write.create ~pp:(print_bir [] None) () in
+    Project.add_writer
+    ~desc:"print program in IR" ~ver "soufflebir" pp_bir;
   Ok ()
